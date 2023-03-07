@@ -11,6 +11,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.Scanner; 
 
 public class Client {
 
@@ -22,6 +23,7 @@ public class Client {
 
     public static void main(String[] args) throws Exception {
         // Load RSA keys from files
+        Scanner myObj = new Scanner(System.in); 
         PublicKey publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
         PrivateKey privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
         SecretKey aesKey = loadAesKeyFromFile(AES_KEY_FILE);
@@ -29,11 +31,22 @@ public class Client {
         // Create a DatagramSocket
         DatagramSocket socket = new DatagramSocket();
 
+        while(true){
+            System.out.println("Type something to server");
+            String message = myObj.nextLine();
+            byte[] messageBytes = aesCypher(message,aesKey);
+            InetAddress serverAddress = InetAddress.getByName("localhost");
+            DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, SERVER_PORT);
+
+        // Send the packet to the server
+            socket.send(packet);
+
+        }
         // Create a message to be signed
-        String message = "Hello, server!";
+        
 
 
-        byte[] messageBytes = aesCypher(message,aesKey);
+        
         /*Signature dsaForSign = Signature.getInstance("SHA1withDSA");
         dsaForSign.initSign(privateKey);
         dsaForSign.update(messageBytes);
@@ -46,14 +59,9 @@ public class Client {
         System.out.println("Signature verifies: " + verifies);*/
 
         // Create a DatagramPacket containing the message and the server address/port
-        InetAddress serverAddress = InetAddress.getByName("localhost");
-        DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, SERVER_PORT);
-
-        // Send the packet to the server
-        socket.send(packet);
-
+        
         // Close the socket
-        socket.close();
+        //socket.close();
     }
 
     private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {

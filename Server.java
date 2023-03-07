@@ -134,6 +134,19 @@ public class Server {
         
     }
 
+    public static void broadcast(byte[] messageBytes, String[] ports, DatagramSocket socket) throws Exception{
+        for (String port : ports) {
+            if(SERVER_PORT!= Integer.parseInt(port)){
+                InetAddress serverAddress = InetAddress.getByName("localhost");
+                DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
+
+                // Send the packet to the server
+                socket.send(packet);
+            }
+            
+        }
+    }
+
 }
 
 

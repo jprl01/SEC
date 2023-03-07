@@ -26,7 +26,7 @@ public class Client {
         Scanner myObj = new Scanner(System.in); 
         PublicKey publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
         PrivateKey privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
-        SecretKey aesKey = loadAesKeyFromFile(AES_KEY_FILE);
+        
 
         // Create a DatagramSocket
         DatagramSocket socket = new DatagramSocket();
@@ -34,7 +34,7 @@ public class Client {
         while(true){
             System.out.println("Type something to server");
             String message = myObj.nextLine();
-            byte[] messageBytes = aesCypher(message,aesKey);
+            byte[] messageBytes = sign(message,privateKey);
             InetAddress serverAddress = InetAddress.getByName("localhost");
             DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, SERVER_PORT);
 
@@ -47,11 +47,8 @@ public class Client {
 
 
         
-        /*Signature dsaForSign = Signature.getInstance("SHA1withDSA");
-        dsaForSign.initSign(privateKey);
-        dsaForSign.update(messageBytes);
-        byte[] signature = dsaForSign.sign();
-
+        
+/* 
         Signature dsaForVerify = Signature.getInstance("SHA1withDSA");
         dsaForVerify.initVerify(publicKey);
         dsaForVerify.update(messageBytes);
@@ -75,39 +72,29 @@ public class Client {
         byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePrivate(spec);
+        PrivateKey rsaPrivateKey= keyFactory.generatePrivate(spec);
+
+        // Create a new DSA KeyPair object
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("DSA");
+        keyPairGenerator.initialize(1024);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+
+        // Convert the RSA private key into a DSA-compatible private key
+        PKCS8EncodedKeySpec dsaPrivateKeySpec = new PKCS8EncodedKeySpec(rsaPrivateKey.getEncoded());
+        PrivateKey dsaPrivateKey = keyFactory.generatePrivate(dsaPrivateKeySpec);
+        return dsaPrivateKey;
     }
 
-    private static SecretKey loadAesKeyFromFile(String fileName) throws Exception {
-        File keyFile = new File(fileName);
-        byte[] keyBytes = new byte[(int) keyFile.length()];
-        try (DataInputStream dis = new DataInputStream(new FileInputStream(keyFile))) {
-            dis.readFully(keyBytes);
-        }
-        SecretKey aesKey = new SecretKeySpec(keyBytes, "AES");
-        return aesKey;
+
+    private static byte[] sign(String message, PrivateKey privateKey) throws Exception{
+        byte[] data = message.getBytes();
+        Signature dsaForSign = Signature.getInstance("SHA1withDSA");
+        dsaForSign.initSign(privateKey);
+        dsaForSign.update(data);
+        byte[] signature = dsaForSign.sign();
+        return signature;
     }
 
-    private static byte[] aesCypher(String message, SecretKey aesKey) throws Exception {
-        aesKey.getEncoded();
-        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        aesCipher.init(Cipher.ENCRYPT_MODE, aesKey);
-        byte[] cleartext = message.getBytes();
-        // Cifar cleartext
-        byte[] ciphertext = aesCipher.doFinal(cleartext);
-        return ciphertext;
-    }
-
-    private static void aesDecypher( SecretKey aesKey, byte[] ciphertext) throws Exception {
-        aesKey.getEncoded();
-        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        aesCipher.init(Cipher.DECRYPT_MODE, aesKey);
-        // Decifrar criptograma
-        byte[] cleartext1 = aesCipher.doFinal(ciphertext);
-
-        String s = new String(cleartext1, "UTF-8"); // convert bytes to string
-        System.out.println(s);
-    }
 
 }
 

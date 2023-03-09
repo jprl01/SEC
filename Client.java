@@ -23,13 +23,15 @@ public class Client {
     private static final int BUFFER_SIZE = 1024;
     private static String clientName;
     private static int seqNumber = 0;
+    private static PublicKey publicKey;
+    private static PrivateKey privateKey;
 
     public static void main(String[] args) throws Exception {
         // Load RSA keys from files
         clientName=args[0];
         Scanner myObj = new Scanner(System.in); 
-        PublicKey publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
-        PrivateKey privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
+         publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
+         privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
         
 
         // Create a DatagramSocket
@@ -39,6 +41,7 @@ public class Client {
             System.out.println("Type something to server");
             String message ="Client_"+ clientName + '_' +  (seqNumber++) + '_' + myObj.nextLine();
             byte[] data = sign(message,privateKey);
+            
             
             
             InetAddress serverAddress = InetAddress.getByName("localhost");
@@ -90,35 +93,47 @@ public class Client {
         dsaForSign.initSign(privateKey);
         dsaForSign.update(messageBytes);
         byte[] signature = dsaForSign.sign();
-        System.out.println(signature.length);
+        
+        
+        
+        String encodedString = Base64.getEncoder().encodeToString(signature);
+        
+        signature=encodedString.getBytes();
+        
         byte[] data = new byte[messageBytes.length + signature.length];
-        System.out.println("signature: "+signature);
         System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
 
         return data;
     }
 
-    private static String verifySign(PublicKey publicKey, byte[] data) throws Exception{
-        System.out.println(data.length);
-        byte[] messageBytes = new byte[data.length-512];
-        byte[] signature = new byte[512];
 
-        System.arraycopy(data, 0, messageBytes, 0, data.length-512);
-        System.arraycopy(data, data.length-512, signature, 0, 512);
+    private static String verifySign(byte[] data) throws Exception{
+        
+        byte[] messageBytes = new byte[data.length-684];
+        byte[] signature = new byte[684];
+
+        System.arraycopy(data, 0, messageBytes, 0, data.length-684);
+        System.arraycopy(data, data.length-684, signature, 0, 684);
         Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
-        boolean verifies = rsaForVerify.verify(signature);
+
+        String sig = new String(signature);
+        byte[] decodedBytes = Base64.getDecoder().decode(sig);
+        
+        
+        boolean verifies = rsaForVerify.verify(decodedBytes);
         
         
         String str = new String(messageBytes, StandardCharsets.UTF_8);
         System.out.println("Received message: "+str);
-        System.out.println("Received signature: "+signature);
+        
         System.out.println("Signature verifies: " + verifies);
 
         return str;
-    }   
+    }
+      
 
 
 }

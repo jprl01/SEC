@@ -15,8 +15,8 @@ import java.nio.charset.StandardCharsets;
 
 public class Server {
 
-    private static final String PUBLIC_KEY_FILE = "clientPub.key";
-    private static final String PRIVATE_KEY_FILE = "clientPriv.key";
+    private static String PUBLIC_KEY_FILE = "clientPub.key";
+    private static String PRIVATE_KEY_FILE = "clientPriv.key";
     
     private static  int SERVER_PORT ;
     private static final int BUFFER_SIZE = 1024;
@@ -28,9 +28,12 @@ public class Server {
     private static final int maxRetries = 10;
     private static PublicKey publicKey;
     private static PrivateKey privateKey;
+    
+    private static int quorum=0;
+
 
     public static void main(String[] args) throws Exception {
-        boolean ola=false;
+        
         SERVER_PORT=Integer.parseInt(args[0]);
         int lowestPort=Integer.parseInt(args[1]);
         String[] ports = new String[args.length-1];
@@ -74,13 +77,13 @@ public class Server {
             String[] tokens= receivedMessage.split("_");
             
             if(leader && tokens[0].equals("Client")){
+                consensus(command,ports);
                 
-                broadcast(command, ports);
             }else{
                 
                 InetAddress clientAddress = receivePacket.getAddress();
                 int clientPort = receivePacket.getPort();
-                String response = tokens[0]+"_recebi bro";
+                String response = tokens[0]+"_ACK";
                 byte[] sendData = sign(response);
                 DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
@@ -126,15 +129,20 @@ public class Server {
 
     private static String verifySign(byte[] data) throws Exception{
         
-        byte[] messageBytes = new byte[data.length-512];
-        byte[] signature = new byte[512];
+        byte[] messageBytes = new byte[data.length-684];
+        byte[] signature = new byte[684];
 
-        System.arraycopy(data, 0, messageBytes, 0, data.length-512);
-        System.arraycopy(data, data.length-512, signature, 0, 512);
+        System.arraycopy(data, 0, messageBytes, 0, data.length-684);
+        System.arraycopy(data, data.length-684, signature, 0, 684);
         Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
-        boolean verifies = rsaForVerify.verify(signature);
+
+        String sig = new String(signature);
+        byte[] decodedBytes = Base64.getDecoder().decode(sig);
+        
+        
+        boolean verifies = rsaForVerify.verify(decodedBytes);
         
         
         String str = new String(messageBytes, StandardCharsets.UTF_8);
@@ -147,19 +155,24 @@ public class Server {
 
     
 
-    public static void start( String[] ports) throws Exception{
+    public static void start( String message,String[] ports) throws Exception{
         Thread.sleep(1000);
         if(leader){
-            String start ="PRE-PREPARE_1_"+ String.valueOf(round)+" ola";
+            String start ="PRE-PREPARE_1_"+ String.valueOf(round)+"_"+message;
             
             broadcast(start, ports);
+            System.out.println(quorum);
+            if(quorum>=2){
+                System.out.println("Majority received");
+            }
+
             
         }
         
     }
 
     public static void broadcast(String message, String[] ports) throws Exception{
-        
+        int quorum=2;
         for (String port : ports) {
             
             if(SERVER_PORT!= Integer.parseInt(port)){
@@ -188,17 +201,22 @@ public class Server {
         dsaForSign.initSign(privateKey);
         dsaForSign.update(messageBytes);
         byte[] signature = dsaForSign.sign();
-        System.out.println(signature.length);
+        
+        
+        
+        String encodedString = Base64.getEncoder().encodeToString(signature);
+        
+        signature=encodedString.getBytes();
+        
         byte[] data = new byte[messageBytes.length + signature.length];
-
         System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
 
         return data;
     }
 
-    private static void consensus ( String[] ports) throws Exception{
-        start(ports);
+    private static void consensus (String message, String[] ports) throws Exception{
+        start(message,ports);
     }
 
     private static void parseCommand (String command){
@@ -248,14 +266,23 @@ public class Server {
                 // Print the response from the server
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
+                
+                response=verifySign(response.getBytes());
                 String[] tokens= response.split("_");
-                verifySign(response.getBytes());
                 //verify freshness
+                
                 if(Integer.parseInt(tokens[0])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
                 }
-                else
-                    nounce++;
+                else{
+                    if(tokens[1].equals("ACK")){
+                        System.out.println("Response Ok");
+                        
+                        quorum++;
+                    }
+                    
+                }
+                    
                 
                 responseReceived = true;
             } catch (Exception e) {

@@ -13,7 +13,7 @@ public class PuppetMaster{
         String[] ports ={"1234","1235","1236","1237"};
         String portsS=" 1234 1235 1236 1237";
         String command = "java Server";
-        String command2 = "java Client";
+        String command2 = "java Client Joao";
 
         String[] terminalCommand = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" "+ports[0]+portsS};
         String[] terminalCommand2 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" "+ports[1]+portsS};

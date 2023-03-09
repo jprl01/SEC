@@ -11,18 +11,26 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
 
 public class Server {
 
     private static final String PUBLIC_KEY_FILE = "clientPub.key";
     private static final String PRIVATE_KEY_FILE = "clientPriv.key";
-    private static final String AES_KEY_FILE = "aes.key";
+    
     private static  int SERVER_PORT ;
     private static final int BUFFER_SIZE = 1024;
     private static boolean leader=false;
     private static int round=1;
+    private static Map<String, Integer> clientsRequests = new HashMap<>();
+    private static int nounce=1000;
+    private static final int timeout = 5000; // 5 seconds
+    private static final int maxRetries = 10;
+    private static PublicKey publicKey;
+    private static PrivateKey privateKey;
 
     public static void main(String[] args) throws Exception {
+        boolean ola=false;
         SERVER_PORT=Integer.parseInt(args[0]);
         int lowestPort=Integer.parseInt(args[1]);
         String[] ports = new String[args.length-1];
@@ -36,9 +44,9 @@ public class Server {
 
         
         // Load RSA keys from files
-        PublicKey publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
-        PrivateKey privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
-        SecretKey aesKey = loadAesKeyFromFile(AES_KEY_FILE);
+        publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
+        privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
+        
 
         // Create a DatagramSocket
         DatagramSocket socket = new DatagramSocket(SERVER_PORT);
@@ -50,7 +58,8 @@ public class Server {
         //aesDecypher(aesKey,ciphertext);
 
         
-        start(socket,ports,aesKey);
+        //start(socket,ports);
+        
         while(true){
             byte[] data = new byte[BUFFER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(data, data.length);
@@ -58,8 +67,39 @@ public class Server {
             // Receive the packet from the client
             socket.receive(receivePacket);
 
+            
+            System.out.println("huiiii");
             String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-            aesDecypher(aesKey,receivedMessage.getBytes());
+            String command = verifySign(receivedMessage.getBytes());
+            String[] tokens= receivedMessage.split("_");
+            
+            if(leader && tokens[0].equals("Client")){
+                
+                broadcast(command, ports);
+            }else{
+                
+                InetAddress clientAddress = receivePacket.getAddress();
+                int clientPort = receivePacket.getPort();
+                String response = tokens[0]+"_recebi bro";
+                byte[] sendData = sign(response);
+                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                socket.send(sendPacket);
+            }
+            
+            
+
+            //parseCommand(command);
+            //sendMessage(receivedMessage, "1235", socket);
+            /*if(SERVER_PORT==1234 && ola==false){
+                ola=true;
+                broadcast(receivedMessage, ports);
+            }else{*/
+                
+            
+            
+                
+            
+            
 
             
             //System.out.println("Received from server: " + receivedMessage);
@@ -84,71 +124,166 @@ public class Server {
         return keyFactory.generatePrivate(spec);
     }
 
-    private static SecretKey loadAesKeyFromFile(String fileName) throws Exception {
-        File keyFile = new File(fileName);
-        byte[] keyBytes = new byte[(int) keyFile.length()];
-        try (DataInputStream dis = new DataInputStream(new FileInputStream(keyFile))) {
-            dis.readFully(keyBytes);
-        }
-        SecretKey aesKey = new SecretKeySpec(keyBytes, "AES");
-        return aesKey;
-    }
+    private static String verifySign(byte[] data) throws Exception{
+        
+        byte[] messageBytes = new byte[data.length-512];
+        byte[] signature = new byte[512];
 
-    private static byte[] aesCypher(String message, SecretKey aesKey) throws Exception {
-        aesKey.getEncoded();
-        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        aesCipher.init(Cipher.ENCRYPT_MODE, aesKey);
-        byte[] cleartext = message.getBytes();
-        // Cifar cleartext
-        byte[] ciphertext = aesCipher.doFinal(cleartext);
-        return ciphertext;
-    }
+        System.arraycopy(data, 0, messageBytes, 0, data.length-512);
+        System.arraycopy(data, data.length-512, signature, 0, 512);
+        Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
+        rsaForVerify.initVerify(publicKey);
+        rsaForVerify.update(messageBytes);
+        boolean verifies = rsaForVerify.verify(signature);
+        
+        
+        String str = new String(messageBytes, StandardCharsets.UTF_8);
+        System.out.println("Received message: "+str);
+        
+        System.out.println("Signature verifies: " + verifies);
 
-    private static void aesDecypher( SecretKey aesKey, byte[] ciphertext) throws Exception {
-        aesKey.getEncoded();
-        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-        aesCipher.init(Cipher.DECRYPT_MODE, aesKey);
-        // Decifrar criptograma
-        byte[] cleartext1 = aesCipher.doFinal(ciphertext);
+        return str;
+    }   
 
-        String s = new String(cleartext1, "UTF-8"); // convert bytes to string
-        System.out.println(s);
-    }
+    
 
-    public static void start(DatagramSocket socket, String[] ports, SecretKey aesKey) throws Exception{
+    public static void start( String[] ports) throws Exception{
         Thread.sleep(1000);
         if(leader){
-            String start ="PRE-PREPARE 1 "+ String.valueOf(round)+" ola";
-            byte[] messageBytes = aesCypher(start,aesKey);
-            for (String port : ports) {
-                if(SERVER_PORT!= Integer.parseInt(port)){
-                    InetAddress serverAddress = InetAddress.getByName("localhost");
-                    DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
-
-                    // Send the packet to the server
-                    socket.send(packet);
-                }
-                
-            }
+            String start ="PRE-PREPARE_1_"+ String.valueOf(round)+" ola";
+            
+            broadcast(start, ports);
+            
         }
         
     }
 
-    public static void broadcast(byte[] messageBytes, String[] ports, DatagramSocket socket) throws Exception{
+    public static void broadcast(String message, String[] ports) throws Exception{
+        
         for (String port : ports) {
+            
             if(SERVER_PORT!= Integer.parseInt(port)){
-                InetAddress serverAddress = InetAddress.getByName("localhost");
-                DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
 
-                // Send the packet to the server
-                socket.send(packet);
+                final String arg = port;
+                Thread thread = new Thread(new Runnable()  {
+                    public void run()  {
+                        try{
+                            sendMessage(message,arg);
+                        }catch(Exception e){
+                            System.out.println("erro");
+                        }
+                        
+                    }
+                });
+                thread.start();
+                
             }
             
         }
     }
 
+    private static byte[] sign(String message) throws Exception{
+        byte[] messageBytes = message.getBytes();
+        Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+        dsaForSign.initSign(privateKey);
+        dsaForSign.update(messageBytes);
+        byte[] signature = dsaForSign.sign();
+        System.out.println(signature.length);
+        byte[] data = new byte[messageBytes.length + signature.length];
+
+        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+        System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+
+        return data;
+    }
+
+    private static void consensus ( String[] ports) throws Exception{
+        start(ports);
+    }
+
+    private static void parseCommand (String command){
+        String[] tokens= command.split("_");
+        int requestId=Integer.parseInt(tokens[1]);
+        if(clientsRequests.containsKey(tokens[0])){
+            if(requestId==clientsRequests.get(tokens[0])){
+                clientsRequests.put(tokens[0],requestId++);
+            }
+        }else{
+            if(requestId==0){
+                clientsRequests.put(tokens[0],requestId++);
+            }
+        }
+    }
+
+    private static void sendMessage(String message, String port) throws Exception{
+        int messageNounce=nounce;
+        nounce++;
+        boolean responseReceived=false;
+        
+        DatagramSocket socket = new DatagramSocket();
+        int timeout=5000;
+        message= String.valueOf(messageNounce)+"_"+message;
+        byte[] messageBytes= sign(message);
+        InetAddress serverAddress = InetAddress.getByName("localhost");
+        DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
+        
+        // Send the packet to the server
+        socket.setSoTimeout(timeout);
+        
+        
+        while (!responseReceived) {
+            // Send the packet to the server
+            socket.send(packet);
+            
+            
+            // Create a packet to receive the response from the server
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+
+            try {
+                
+                // Wait for the response from the server
+                socket.receive(receivePacket);
+                
+                // Print the response from the server
+                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                
+                String[] tokens= response.split("_");
+                verifySign(response.getBytes());
+                //verify freshness
+                if(Integer.parseInt(tokens[0])!=messageNounce){
+                    System.out.println("Trying to corrupt the message");
+                }
+                else
+                    nounce++;
+                
+                responseReceived = true;
+            } catch (Exception e) {
+                // If a timeout occurs, retry sending the message
+                System.out.println("Timeout occurred, retrying...");
+                e.printStackTrace();
+                
+            }
+        }
+        
+        if (!responseReceived) {
+            System.out.println("No response received after " + maxRetries + " retries.");
+        }
+        socket.close();
+        
+            
+         
+    }
 }
 
+
+
+
+
+
+
+
+ 
 
 
 

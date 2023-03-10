@@ -38,6 +38,7 @@ public class Server {
     private static PrivateKey privateKey;
     
     private static int quorum=0;
+    private static int consensus_instance=1;
 
 
     public static void main(String[] args) throws Exception {
@@ -81,11 +82,15 @@ public class Server {
             
             System.out.println("huiiii");
             String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-            String command = verifySign(receivedMessage.getBytes());
-            String[] tokens= receivedMessage.split("_");
+            String str = verifySign(receivedMessage.getBytes());
+            String[] tokens= str.split("_");
             
-            if(leader && tokens[0].equals("Client")){
-                consensus(command,ports);
+            if(tokens[0].equals("Client")){
+                if(leader){
+                    String command=str.substring(7);
+                    consensus(command,ports);
+                }
+                
                 
             }else{
                 
@@ -95,6 +100,8 @@ public class Server {
                 byte[] sendData = sign(response);
                 DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
+
+                analyse_command(str);
             }
             
             
@@ -118,6 +125,10 @@ public class Server {
         // Close the socket
         //socket.close();
         
+        
+    }
+
+    private static void analyse_command(String command){
         
     }
 
@@ -166,7 +177,7 @@ public class Server {
     public static void start( String message,String[] ports) throws Exception{
         
         if(leader){
-            String start ="PRE-PREPARE_1_"+ String.valueOf(round)+"_"+message;
+            String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
             broadcast(start, ports);
             
@@ -182,7 +193,7 @@ public class Server {
     }
 
     public static void broadcast(String message, String[] ports) throws Exception{
-        int quorum=2;
+        
         for (String port : ports) {
             
             if(SERVER_PORT!= Integer.parseInt(port)){
@@ -227,6 +238,8 @@ public class Server {
 
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);
+
+        consensus_instance++;
     }
 
     private static void parseCommand (String command){

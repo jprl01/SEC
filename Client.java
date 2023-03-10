@@ -19,7 +19,7 @@ public class Client {
     private static final String PUBLIC_KEY_FILE = "clientPub.key";
     private static final String PRIVATE_KEY_FILE = "clientPriv.key";
     
-    private static final int SERVER_PORT = 1234;
+    
     private static final int BUFFER_SIZE = 1024;
     private static String clientName;
     private static int seqNumber = 0;
@@ -27,7 +27,11 @@ public class Client {
     private static PrivateKey privateKey;
 
     public static void main(String[] args) throws Exception {
-        // Load RSA keys from files
+        String[] ports = new String[args.length-1];
+        for(int i=1;i< args.length;i++){
+
+            ports[i-1]=args[i];
+        }
         clientName=args[0];
         Scanner myObj = new Scanner(System.in); 
          publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
@@ -43,12 +47,15 @@ public class Client {
             byte[] data = sign(message,privateKey);
             
             
+            for(String port: ports){
+                InetAddress serverAddress = InetAddress.getByName("localhost");
+                DatagramPacket packet = new DatagramPacket(data, data.length, serverAddress, Integer.parseInt(port));
+                socket.send(packet);
+            }
             
-            InetAddress serverAddress = InetAddress.getByName("localhost");
-            DatagramPacket packet = new DatagramPacket(data, data.length, serverAddress, SERVER_PORT);
 
         // Send the packet to the server
-            socket.send(packet);
+            
 
         }
         // Create a message to be signed

@@ -17,6 +17,14 @@ public class Server {
 
     private static String PUBLIC_KEY_FILE = "clientPub.key";
     private static String PRIVATE_KEY_FILE = "clientPriv.key";
+    private static String SERVER1_PUBLIC_KEY_FILE ;
+    private static String SERVER1_PRIVATE_KEY_FILE;
+    private static String SERVER2_PUBLIC_KEY_FILE ;
+    private static String SERVER2_PRIVATE_KEY_FILE;
+    private static String SERVER3_PUBLIC_KEY_FILE ;
+    private static String SERVER3_PRIVATE_KEY_FILE;
+    private static String SERVER4_PUBLIC_KEY_FILE ;
+    private static String SERVER4_PRIVATE_KEY_FILE;
     
     private static  int SERVER_PORT ;
     private static final int BUFFER_SIZE = 1024;
@@ -156,11 +164,13 @@ public class Server {
     
 
     public static void start( String message,String[] ports) throws Exception{
-        Thread.sleep(1000);
+        
         if(leader){
             String start ="PRE-PREPARE_1_"+ String.valueOf(round)+"_"+message;
             
             broadcast(start, ports);
+            
+            Thread.sleep(5000);
             System.out.println(quorum);
             if(quorum>=2){
                 System.out.println("Majority received");

@@ -80,7 +80,7 @@ public class Server {
             socket.receive(receivePacket);
 
             
-            System.out.println("huiiii");
+            
             String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
             String str = verifySign(receivedMessage.getBytes());
             String[] tokens= str.split("_");
@@ -93,6 +93,9 @@ public class Server {
                 
                 
             }else{
+
+                String command=str.substring(tokens[0].length()+1);
+                
                 
                 InetAddress clientAddress = receivePacket.getAddress();
                 int clientPort = receivePacket.getPort();
@@ -101,7 +104,7 @@ public class Server {
                 DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
 
-                analyse_command(str);
+                analyse_command(command,ports);
             }
             
             
@@ -128,8 +131,27 @@ public class Server {
         
     }
 
-    private static void analyse_command(String command){
+    private static void analyse_command(String command,String ports[]) throws Exception{
+        String[] tokens= command.split("_");
         
+        if(tokens[0].equals("PRE-PREPARE")){
+            command=command.substring(12);
+            
+            String prepare="PREPARE_"+command;
+            System.out.println("Broadcasting");
+            broadcast(prepare,ports);
+        }
+        else if(tokens[0].equals("PREPARE")){
+            command=command.substring(8);
+            String commit="COMMIT_"+command;
+            System.out.println("Broadcasting");
+            broadcast(commit,ports);
+        }
+        else if(tokens[0].equals("COMMIT")){
+            //command=command.substring(8);
+            //String commit="COMMIT_"+command;
+            //broadcast(commit,ports);
+        }
     }
 
     private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
@@ -202,6 +224,7 @@ public class Server {
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
+                            System.out.println("sending to "+arg);
                             sendMessage(message,arg);
                         }catch(Exception e){
                             System.out.println("erro");
@@ -239,7 +262,7 @@ public class Server {
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);
 
-        consensus_instance++;
+        
     }
 
     private static void parseCommand (String command){

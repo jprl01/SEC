@@ -33,6 +33,7 @@ public class Server {
     private static Map<String, Integer> clientsRequests = new HashMap<>();
     private static int nounce=1000;
     private static int messagesId=0;
+    private static List<Integer> receivedIds = new ArrayList<>();
     private static final int timeout = 5000; // 5 seconds
     private static final int maxRetries = 10;
     private static PublicKey publicKey;
@@ -321,22 +322,25 @@ public class Server {
                 response=verifySign(response.getBytes());
                 String[] tokens= response.split("_");
 
-                System.out.println ("TOKEN1:" + tokens[1] + " AND MESSAGEID: " + messageId);
-                if(Integer.parseInt(tokens[1])!=messageId){
-                    System.out.println("Duplicate message");
-                }
+
 
                 //verify freshness
                 if(Integer.parseInt(tokens[0])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
                 }
                 else{
-                    if(tokens[2].equals("ACK")){
-                        System.out.println("Response Ok");
-                        
-                        quorum++;
+                    //verify if is duplicate
+                    if(receivedIds.contains(Integer.parseInt(tokens[1]))){
+                        System.out.println("Duplicate message");
                     }
-                    
+                    else{
+                        receivedIds.add(Integer.parseInt(tokens[1]));
+                        if(tokens[2].equals("ACK")){
+                            System.out.println("Response Ok");
+                            
+                            quorum++;
+                        }
+                    }
                 }
                     
                 

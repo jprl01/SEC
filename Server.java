@@ -33,6 +33,7 @@ public class Server {
     private static int round=1;
     private static Map<String, Integer> clientsRequests = new HashMap<>();
     private static Map<String, String> clientsChain = new HashMap<>();
+    private static Map<String, Integer> consensusValue = new HashMap<>();
     private static int nounce=1000;
     private static final int timeout = 5000; // 5 seconds
     private static final int maxRetries = 10;
@@ -41,7 +42,7 @@ public class Server {
     
     private static int quorum=0;
     private static int quorum_prepares=0;
-    private static int quorum_commits=0;
+    
     private static int consensus_instance=1;
     private static boolean consensus_started=false;
 
@@ -161,29 +162,42 @@ public class Server {
     private static void analyse_command(String command,String ports[]) throws Exception{
         String[] tokens= command.split("_");
         
-        if(tokens[0].equals("PRE-PREPARE")){
+        if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance))){
             command=command.substring(12);
             
             String prepare="PREPARE_"+command;
+            
             System.out.println("Broadcasting PREPARE");
             broadcast(prepare,ports);
+            
+            
         }
-        else if(tokens[0].equals("PREPARE")){
+        else if(tokens[0].equals("PREPARE") && tokens[1].equals(String.valueOf(consensus_instance))){
             command=command.substring(8);
             String commit="COMMIT_"+command;
             quorum_prepares++;
-            if(quorum_prepares==2){
+            if(quorum_prepares==3){
                 quorum_prepares=0;
                 System.out.println("Broadcasting COMMIT");
                 broadcast(commit,ports);
             }
             
         }
-        else if(tokens[0].equals("COMMIT")){
+        else if(tokens[0].equals("COMMIT") && tokens[1].equals(String.valueOf(consensus_instance))){
             command=command.substring(7);
-            quorum_commits++;
-            if(quorum_commits==2){
-                quorum_commits=0;
+            int requests;
+            if(!consensusValue.containsKey(tokens[4])){
+                requests=1;
+            }else{
+                requests=consensusValue.get(tokens[4])+1;
+                
+            }
+            consensusValue.put(tokens[4],requests); 
+            
+            
+            System.out.println("commits received "+consensusValue.get(tokens[4]));
+            if(consensusValue.get(tokens[4])==3){
+                consensusValue.put(tokens[4],0);
                 System.out.println("Deciding COMMIT");
                 decide(command);
             }
@@ -195,7 +209,13 @@ public class Server {
 
     private static void decide(String command){
         System.out.println(command);
+        quorum=0;
+        
+        quorum_prepares=0;
+        consensus_instance++;
+        consensusValue.clear();
         consensus_started=false;
+
     }
 
     private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
@@ -247,11 +267,11 @@ public class Server {
             
             broadcast(start, ports);
             
-            Thread.sleep(5000);
+            /*Thread.sleep(5000);
             System.out.println(quorum);
             if(quorum>=2){
                 System.out.println("Majority received");
-            }
+            }*/
 
             
         }
@@ -262,23 +282,23 @@ public class Server {
         
         for (String port : ports) {
             
-            if(SERVER_PORT!= Integer.parseInt(port)){
+            
 
-                final String arg = port;
-                Thread thread = new Thread(new Runnable()  {
-                    public void run()  {
-                        try{
-                            System.out.println("sending to "+arg);
-                            sendMessage(message,arg);
-                        }catch(Exception e){
-                            System.out.println("erro");
-                        }
-                        
+            final String arg = port;
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+                    try{
+                        System.out.println("sending to "+arg);
+                        sendMessage(message,arg);
+                    }catch(Exception e){
+                        System.out.println("erro");
                     }
-                });
-                thread.start();
+                    
+                }
+            });
+            thread.start();
                 
-            }
+            
             
         }
     }

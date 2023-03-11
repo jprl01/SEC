@@ -25,12 +25,14 @@ public class Server {
     private static String SERVER3_PRIVATE_KEY_FILE;
     private static String SERVER4_PUBLIC_KEY_FILE ;
     private static String SERVER4_PRIVATE_KEY_FILE;
+    private static final Object lock = new Object();
     
     private static  int SERVER_PORT ;
     private static final int BUFFER_SIZE = 1024;
     private static boolean leader=false;
     private static int round=1;
     private static Map<String, Integer> clientsRequests = new HashMap<>();
+    private static Map<String, String> clientsChain = new HashMap<>();
     private static int nounce=1000;
     private static final int timeout = 5000; // 5 seconds
     private static final int maxRetries = 10;
@@ -38,7 +40,10 @@ public class Server {
     private static PrivateKey privateKey;
     
     private static int quorum=0;
+    private static int quorum_prepares=0;
+    private static int quorum_commits=0;
     private static int consensus_instance=1;
+    private static boolean consensus_started=false;
 
 
     public static void main(String[] args) throws Exception {
@@ -78,28 +83,50 @@ public class Server {
 
             // Receive the packet from the client
             socket.receive(receivePacket);
+            int clientPort = receivePacket.getPort();
 
             
             
             String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
             String str = verifySign(receivedMessage.getBytes());
+            
             String[] tokens= str.split("_");
             
-            if(tokens[0].equals("Client")){
+            if(tokens[1].equals("Client") && !consensus_started){
+                consensus_started=true;
+                
+                String response;
                 if(leader){
-                    String command=str.substring(7);
+                    response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
+
+                    
+                }else{
+                    response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
+                }
+                
+                InetAddress clientAddress = receivePacket.getAddress();
+                
+                
+                byte[] sendData = sign(response);
+                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                socket.send(sendPacket);
+                
+                if(leader){
+                    String command=str.substring(tokens[0].length()+tokens[1].length()+2);
                     consensus(command,ports);
                 }
                 
+
+                
                 
             }else{
-
-                String command=str.substring(tokens[0].length()+1);
+                System.out.println("Received from port: "+tokens[0]);
+                String command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
                 
                 InetAddress clientAddress = receivePacket.getAddress();
-                int clientPort = receivePacket.getPort();
-                String response = tokens[0]+"_ACK";
+                
+                String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
                 byte[] sendData = sign(response);
                 DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
@@ -138,20 +165,37 @@ public class Server {
             command=command.substring(12);
             
             String prepare="PREPARE_"+command;
-            System.out.println("Broadcasting");
+            System.out.println("Broadcasting PREPARE");
             broadcast(prepare,ports);
         }
         else if(tokens[0].equals("PREPARE")){
             command=command.substring(8);
             String commit="COMMIT_"+command;
-            System.out.println("Broadcasting");
-            broadcast(commit,ports);
+            quorum_prepares++;
+            if(quorum_prepares==2){
+                quorum_prepares=0;
+                System.out.println("Broadcasting COMMIT");
+                broadcast(commit,ports);
+            }
+            
         }
         else if(tokens[0].equals("COMMIT")){
-            //command=command.substring(8);
+            command=command.substring(7);
+            quorum_commits++;
+            if(quorum_commits==2){
+                quorum_commits=0;
+                System.out.println("Deciding COMMIT");
+                decide(command);
+            }
+            //
             //String commit="COMMIT_"+command;
             //broadcast(commit,ports);
         }
+    }
+
+    private static void decide(String command){
+        System.out.println(command);
+        consensus_started=false;
     }
 
     private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
@@ -189,7 +233,7 @@ public class Server {
         String str = new String(messageBytes, StandardCharsets.UTF_8);
         System.out.println("Received message: "+str);
         
-        System.out.println("Signature verifies: " + verifies);
+        System.out.println("Signature verifies: " + verifies+"\n");
 
         return str;
     }   
@@ -280,13 +324,17 @@ public class Server {
     }
 
     private static void sendMessage(String message, String port) throws Exception{
-        int messageNounce=nounce;
-        nounce++;
+        int messageNounce;
+        synchronized (lock) {
+            messageNounce=nounce;
+            nounce++;
+        }
+        
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
-        message= String.valueOf(messageNounce)+"_"+message;
+        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
@@ -316,12 +364,14 @@ public class Server {
                 response=verifySign(response.getBytes());
                 String[] tokens= response.split("_");
                 //verify freshness
+                System.out.println("Received from Server port: "+tokens[0]);
+
                 
-                if(Integer.parseInt(tokens[0])!=messageNounce){
+                if(Integer.parseInt(tokens[1])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
                 }
                 else{
-                    if(tokens[1].equals("ACK")){
+                    if(tokens[2].equals("ACK")){
                         System.out.println("Response Ok");
                         
                         quorum++;
@@ -334,7 +384,7 @@ public class Server {
             } catch (Exception e) {
                 // If a timeout occurs, retry sending the message
                 System.out.println("Timeout occurred, retrying...");
-                e.printStackTrace();
+                
                 
             }
         }

@@ -18,6 +18,7 @@ public class Client {
 
     private static final String PUBLIC_KEY_FILE = "clientPub.key";
     private static final String PRIVATE_KEY_FILE = "clientPriv.key";
+    private static int nounce=1000;
     
     
     private static final int BUFFER_SIZE = 1024;
@@ -25,6 +26,7 @@ public class Client {
     private static int seqNumber = 0;
     private static PublicKey publicKey;
     private static PrivateKey privateKey;
+    private static final Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
         String[] ports = new String[args.length-1];
@@ -44,14 +46,7 @@ public class Client {
         while(true){
             System.out.println("Type something to server");
             String message ="Client_"+ clientName + '_' +  (seqNumber++) + '_' + myObj.nextLine();
-            byte[] data = sign(message,privateKey);
-            
-            
-            for(String port: ports){
-                InetAddress serverAddress = InetAddress.getByName("localhost");
-                DatagramPacket packet = new DatagramPacket(data, data.length, serverAddress, Integer.parseInt(port));
-                socket.send(packet);
-            }
+            broadcast(message,ports);
             
 
         // Send the packet to the server
@@ -94,7 +89,7 @@ public class Client {
     }
 
 
-    private static byte[] sign(String message, PrivateKey privateKey) throws Exception{
+    private static byte[] sign(String message) throws Exception{
         byte[] messageBytes = message.getBytes();
         Signature dsaForSign = Signature.getInstance("SHA1withRSA");
         dsaForSign.initSign(privateKey);
@@ -139,6 +134,104 @@ public class Client {
         System.out.println("Signature verifies: " + verifies);
 
         return str;
+    }
+
+    public static void broadcast(String message, String[] ports) throws Exception{
+        
+        for (String port : ports) {
+            
+            
+
+            final String arg = port;
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+                    try{
+                        System.out.println("sending to "+arg);
+                        sendMessage(message,arg);
+                    }catch(Exception e){
+                        System.out.println("erro");
+                    }
+                    
+                }
+            });
+            thread.start();
+            
+            
+            
+        }
+    }
+
+    private static void sendMessage(String message, String port) throws Exception{
+        int messageNounce;
+        synchronized (lock) {
+            messageNounce=nounce;
+            nounce++;
+        }
+        
+        boolean responseReceived=false;
+        
+        DatagramSocket socket = new DatagramSocket();
+        int timeout=5000;
+        message= String.valueOf(messageNounce)+"_"+message;
+        byte[] messageBytes= sign(message);
+        InetAddress serverAddress = InetAddress.getByName("localhost");
+        DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
+        
+        // Send the packet to the server
+        socket.setSoTimeout(timeout);
+        
+        
+        while (!responseReceived) {
+            // Send the packet to the server
+            socket.send(packet);
+            
+            
+            // Create a packet to receive the response from the server
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+
+            try {
+                
+                // Wait for the response from the server
+                socket.receive(receivePacket);
+                
+                // Print the response from the server
+                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                
+                
+                response=verifySign(response.getBytes());
+                String[] tokens= response.split("_");
+                //verify freshness
+                
+                if(Integer.parseInt(tokens[1])!=messageNounce){
+                    System.out.println("Trying to corrupt the message");
+                }
+                else{
+                    if(tokens[2].equals("ACK")){
+                        System.out.println("Response Ok");
+                        
+                        
+                    }
+                    
+                }
+                    
+                
+                responseReceived = true;
+            } catch (Exception e) {
+                // If a timeout occurs, retry sending the message
+                System.out.println("Timeout occurred, retrying... to "+port);
+                
+                
+            }
+        }
+        
+        if (!responseReceived) {
+            System.out.println("No response received ");
+        }
+        socket.close();
+        
+            
+         
     }
       
 

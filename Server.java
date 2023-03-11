@@ -32,6 +32,7 @@ public class Server {
     private static int round=1;
     private static Map<String, Integer> clientsRequests = new HashMap<>();
     private static int nounce=1000;
+    private static int messagesId=0;
     private static final int timeout = 5000; // 5 seconds
     private static final int maxRetries = 10;
     private static PublicKey publicKey;
@@ -99,7 +100,7 @@ public class Server {
                 
                 InetAddress clientAddress = receivePacket.getAddress();
                 int clientPort = receivePacket.getPort();
-                String response = tokens[0]+"_ACK";
+                String response = tokens[0]+"_"+tokens[1]+"_ACK";
                 byte[] sendData = sign(response);
                 DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
@@ -282,11 +283,14 @@ public class Server {
     private static void sendMessage(String message, String port) throws Exception{
         int messageNounce=nounce;
         nounce++;
+        int messageId=messagesId;
+        messagesId++;
+        System.out.println("MESSAGE ID:" + messageId);
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
-        message= String.valueOf(messageNounce)+"_"+message;
+        message= String.valueOf(messageNounce)+"_"+String.valueOf(messageId)+"_"+message;
         byte[] messageBytes= sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
@@ -299,6 +303,8 @@ public class Server {
             // Send the packet to the server
             socket.send(packet);
             
+            // just for test, remove later
+            System.out.println("MESSAGE SENT: " + message);
             
             // Create a packet to receive the response from the server
             byte[] receiveData = new byte[1024];
@@ -312,16 +318,20 @@ public class Server {
                 // Print the response from the server
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
-                
                 response=verifySign(response.getBytes());
                 String[] tokens= response.split("_");
+
+                System.out.println ("TOKEN1:" + tokens[1] + " AND MESSAGEID: " + messageId);
+                if(Integer.parseInt(tokens[1])!=messageId){
+                    System.out.println("Duplicate message");
+                }
+
                 //verify freshness
-                
                 if(Integer.parseInt(tokens[0])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
                 }
                 else{
-                    if(tokens[1].equals("ACK")){
+                    if(tokens[2].equals("ACK")){
                         System.out.println("Response Ok");
                         
                         quorum++;

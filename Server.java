@@ -215,6 +215,7 @@ public class Server {
         consensus_instance++;
         consensusValue.clear();
         consensus_started=false;
+        parseCommand(command);
 
     }
 
@@ -331,14 +332,14 @@ public class Server {
 
     private static void parseCommand (String command){
         String[] tokens= command.split("_");
-        int requestId=Integer.parseInt(tokens[1]);
-        if(clientsRequests.containsKey(tokens[0])){
+        int requestId=Integer.parseInt(tokens[3]);
+        if(clientsRequests.containsKey(tokens[2])){
             if(requestId==clientsRequests.get(tokens[0])){
-                clientsRequests.put(tokens[0],requestId++);
+                clientsRequests.put(tokens[2],requestId++);
             }
         }else{
             if(requestId==0){
-                clientsRequests.put(tokens[0],requestId++);
+                clientsRequests.put(tokens[2],requestId++);
             }
         }
     }

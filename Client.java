@@ -22,6 +22,7 @@ public class Client {
     
     
     private static final int BUFFER_SIZE = 1024;
+    private static int messageId=0;
     private static String clientName;
     private static int seqNumber = 0;
     private static PublicKey publicKey;

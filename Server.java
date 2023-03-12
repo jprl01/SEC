@@ -34,6 +34,7 @@ public class Server {
     private static Map<String, Integer> clientsRequests = new HashMap<>();
     private static Map<String, String> clientsChain = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
+    private static List<String> receivedIds = new ArrayList<>();
     private static int nounce=1000;
     private static final int timeout = 5000; // 5 seconds
     private static final int maxRetries = 10;
@@ -104,6 +105,7 @@ public class Server {
                 }else{
                     response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
                 }
+                receivedIds.put(tokens[1]+"_"+)
                 
                 InetAddress clientAddress = receivePacket.getAddress();
                 

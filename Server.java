@@ -42,7 +42,7 @@ public class Server {
     
     private static int quorum=0;
     private static int quorum_prepares=0;
-    
+    private static int messageId=0;
     private static int consensus_instance=1;
     private static boolean consensus_started=false;
 

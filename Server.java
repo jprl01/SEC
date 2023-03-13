@@ -8,6 +8,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import javax.print.DocFlavor.STRING;
+
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -149,13 +151,16 @@ public class Server {
                 
             }else{
 
-                if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
+                if(receivedIds.contains(tokens[0]+"_"+tokens[2])){
                     System.out.println("duplicated message");
                     continue;
                     
                 }
+                else{
+                    receivedIds.add(tokens[0]+"_"+tokens[2]);
+                }
                 System.out.println("Received from port: "+tokens[0]);
-                String command=str.substring(tokens[0].length()+tokens[1].length()+2);
+                String command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
                 
                 
                 
@@ -333,6 +338,7 @@ public class Server {
                     try{
                         System.out.println("sending to "+arg);
                         sendMessage(message,arg);
+                        
                     }catch(Exception e){
                         System.out.println("erro");
                     }
@@ -397,7 +403,7 @@ public class Server {
         
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
-        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+message;
+        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(messageId++)+"_"+message;
         byte[] messageBytes= sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
@@ -409,6 +415,7 @@ public class Server {
         while (!responseReceived) {
             // Send the packet to the server
             socket.send(packet);
+            
             
             
             // Create a packet to receive the response from the server
@@ -453,7 +460,7 @@ public class Server {
         }
         
         if (!responseReceived) {
-            System.out.println("No response received after " + maxRetries + " retries.");
+            System.out.println("No response received ");
         }
         socket.close();
         

@@ -15,16 +15,9 @@ import java.nio.charset.StandardCharsets;
 
 public class Server {
 
-    private static String PUBLIC_KEY_FILE = "clientPub.key";
+    private static String CLIENT_KEY_FILE = "clientPub.key";
     private static String PRIVATE_KEY_FILE = "clientPriv.key";
-    private static String SERVER1_PUBLIC_KEY_FILE ;
-    private static String SERVER1_PRIVATE_KEY_FILE;
-    private static String SERVER2_PUBLIC_KEY_FILE ;
-    private static String SERVER2_PRIVATE_KEY_FILE;
-    private static String SERVER3_PUBLIC_KEY_FILE ;
-    private static String SERVER3_PRIVATE_KEY_FILE;
-    private static String SERVER4_PUBLIC_KEY_FILE ;
-    private static String SERVER4_PRIVATE_KEY_FILE;
+    
     private static final Object lock = new Object();
     
     private static  int SERVER_PORT ;
@@ -35,10 +28,11 @@ public class Server {
     private static Map<String, String> clientsChain = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
     private static List<String> receivedIds = new ArrayList<>();
+    private static Map<String,PublicKey> publicKeys= new HashMap<>();
     private static int nounce=1000;
     private static final int timeout = 5000; // 5 seconds
     private static final int maxRetries = 10;
-    private static PublicKey publicKey;
+    
     private static PrivateKey privateKey;
     
     private static int quorum=0;
@@ -54,17 +48,30 @@ public class Server {
         int lowestPort=Integer.parseInt(args[1]);
         String[] ports = new String[args.length-1];
         for(int i=1;i< args.length;i++){
+            PublicKey pubKey;
+            pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
+            publicKeys.put(args[i],pubKey);
+            
+             
+            
 
+            if(args[0].equals(args[i])){
+                privateKey=loadPrivateKeyFromFile(args[0]+"Priv.key");
+            }
             ports[i-1]=args[i];
+            
+            
         }
+        PublicKey pubKey=loadPublicKeyFromFile("clientPub.key");
+        publicKeys.put("Client",pubKey);
         if(lowestPort==SERVER_PORT){
             leader=true;
         } 
 
         
         // Load RSA keys from files
-        publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
-        privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
+        
+        
         
 
         // Create a DatagramSocket
@@ -78,10 +85,11 @@ public class Server {
 
         
         //start(socket,ports);
-        
+        Thread.sleep(4000);
         while(true){
             byte[] data = new byte[BUFFER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(data, data.length);
+            DatagramPacket sendPacket;
 
             // Receive the packet from the client
             socket.receive(receivePacket);
@@ -91,27 +99,43 @@ public class Server {
             
             String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
             String str = verifySign(receivedMessage.getBytes());
+            InetAddress clientAddress = receivePacket.getAddress();
             
             String[] tokens= str.split("_");
             
-            if(tokens[1].equals("Client") && !consensus_started){
-                consensus_started=true;
+            if(tokens[1].equals("Client")){
+                synchronized(lock){
+                    if(consensus_started){
+                        System.out.println("Consensus already started");
+                        continue;
+                    }
+                        
+                    consensus_started=true;
+                }
+                
                 
                 String response;
-                if(leader){
-                    response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
-
-                    
-                }else{
-                    response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
-                }
-                receivedIds.put(tokens[1]+"_"+)
                 
-                InetAddress clientAddress = receivePacket.getAddress();
+                if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
+                    System.out.println("duplicated message");
+                    continue;
+                    
+                }
+                else{
+                    if(leader){
+                        response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
+    
+                        
+                    }else{
+                        response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
+                    }
+                    receivedIds.add(tokens[2]+"_"+tokens[3]);
+                   
+                }           
                 
                 
                 byte[] sendData = sign(response);
-                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
                 
                 if(leader){
@@ -119,19 +143,26 @@ public class Server {
                     consensus(command,ports);
                 }
                 
+                
 
                 
                 
             }else{
+
+                if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
+                    System.out.println("duplicated message");
+                    continue;
+                    
+                }
                 System.out.println("Received from port: "+tokens[0]);
                 String command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
                 
-                InetAddress clientAddress = receivePacket.getAddress();
+                
                 
                 String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
                 byte[] sendData = sign(response);
-                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                 sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
 
                 analyse_command(command,ports);
@@ -236,12 +267,22 @@ public class Server {
     }
 
     private static String verifySign(byte[] data) throws Exception{
-        
+        PublicKey publicKey;
         byte[] messageBytes = new byte[data.length-684];
         byte[] signature = new byte[684];
 
         System.arraycopy(data, 0, messageBytes, 0, data.length-684);
         System.arraycopy(data, data.length-684, signature, 0, 684);
+
+        String str = new String(messageBytes, StandardCharsets.UTF_8);
+        System.out.println("Received message: "+str);
+
+        String[] tokens= str.split("_");
+        if(tokens[1].equals("Client"))
+            publicKey=publicKeys.get("Client");
+        else
+            publicKey=publicKeys.get(tokens[0]);
+
         Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
@@ -253,8 +294,7 @@ public class Server {
         boolean verifies = rsaForVerify.verify(decodedBytes);
         
         
-        String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
+        
         
         System.out.println("Signature verifies: " + verifies+"\n");
 
@@ -335,7 +375,7 @@ public class Server {
     private static void parseCommand (String command){
         String[] tokens= command.split("_");
         int requestId=Integer.parseInt(tokens[3]);
-        if(clientsRequests.containsKey(tokens[2])){
+        /*if(clientsRequests.containsKey(tokens[2])){
             if(requestId==clientsRequests.get(tokens[0])){
                 clientsRequests.put(tokens[2],requestId++);
             }
@@ -343,7 +383,7 @@ public class Server {
             if(requestId==0){
                 clientsRequests.put(tokens[2],requestId++);
             }
-        }
+        }*/
     }
 
     private static void sendMessage(String message, String port) throws Exception{

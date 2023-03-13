@@ -19,25 +19,27 @@ public class Client {
     private static final String PUBLIC_KEY_FILE = "clientPub.key";
     private static final String PRIVATE_KEY_FILE = "clientPriv.key";
     private static int nounce=1000;
-    
+    private static Map<String,PublicKey> publicKeys= new HashMap<>();
     
     private static final int BUFFER_SIZE = 1024;
     private static int messageId=0;
     private static String clientName;
     private static int seqNumber = 0;
-    private static PublicKey publicKey;
+    
     private static PrivateKey privateKey;
     private static final Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
         String[] ports = new String[args.length-1];
         for(int i=1;i< args.length;i++){
-
+            PublicKey pubKey;
+            pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
+            publicKeys.put(args[i],pubKey);
             ports[i-1]=args[i];
         }
         clientName=args[0];
         Scanner myObj = new Scanner(System.in); 
-         publicKey = loadPublicKeyFromFile(PUBLIC_KEY_FILE);
+         
          privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
         
 
@@ -46,7 +48,7 @@ public class Client {
 
         while(true){
             System.out.println("Type something to server");
-            String message ="Client_"+ clientName + '_' +  (seqNumber++) + '_' + myObj.nextLine();
+            String message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
             broadcast(message,ports);
             
 
@@ -112,13 +114,21 @@ public class Client {
 
 
     private static String verifySign(byte[] data) throws Exception{
-        
+        PublicKey publicKey;
         byte[] messageBytes = new byte[data.length-684];
         byte[] signature = new byte[684];
 
         System.arraycopy(data, 0, messageBytes, 0, data.length-684);
         System.arraycopy(data, data.length-684, signature, 0, 684);
+
+        String str = new String(messageBytes, StandardCharsets.UTF_8);
+        System.out.println("Received message: "+str);
+
+        String[] tokens= str.split("_");
+        publicKey=publicKeys.get(tokens[0]);
+
         Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
+
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
 
@@ -129,8 +139,7 @@ public class Client {
         boolean verifies = rsaForVerify.verify(decodedBytes);
         
         
-        String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
+        
         
         System.out.println("Signature verifies: " + verifies);
 

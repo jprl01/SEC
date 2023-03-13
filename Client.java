@@ -16,8 +16,7 @@ import java.nio.charset.StandardCharsets;
 
 public class Client {
 
-    private static final String PUBLIC_KEY_FILE = "clientPub.key";
-    private static final String PRIVATE_KEY_FILE = "clientPriv.key";
+    
     private static int nounce=1000;
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     
@@ -25,22 +24,30 @@ public class Client {
     private static int messageId=0;
     private static String clientName;
     private static int seqNumber = 0;
+    private static int nServers;
     
     private static PrivateKey privateKey;
     private static final Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
-        String[] ports = new String[args.length-1];
-        for(int i=1;i< args.length;i++){
+        clientName=args[0];
+        nServers=Integer.parseInt(args[1]);
+        String[] ports = new String[args.length-2];
+        for(int i=2;i< args.length;i++){
             PublicKey pubKey;
             pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
             publicKeys.put(args[i],pubKey);
-            ports[i-1]=args[i];
+            ports[i-2]=args[i];
+
+            if(clientName.equals(args[i])){
+                System.out.println("chave privv");
+                privateKey = loadPrivateKeyFromFile(args[i]+"Priv.key");
+            }
         }
-        clientName=args[0];
+        
         Scanner myObj = new Scanner(System.in); 
          
-         privateKey = loadPrivateKeyFromFile(PRIVATE_KEY_FILE);
+         
         
 
         // Create a DatagramSocket
@@ -147,9 +154,10 @@ public class Client {
     }
 
     public static void broadcast(String message, String[] ports) throws Exception{
-        
+        int i=0;
         for (String port : ports) {
-            
+            if(i==nServers)
+                break;
             
 
             final String arg = port;
@@ -160,11 +168,13 @@ public class Client {
                         sendMessage(message,arg);
                     }catch(Exception e){
                         System.out.println("erro");
+                        e.printStackTrace();
                     }
                     
                 }
             });
             thread.start();
+            i++;
             
             
             
@@ -241,7 +251,7 @@ public class Client {
         socket.close();
         
             
-         
+        
     }
       
 

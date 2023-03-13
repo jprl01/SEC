@@ -26,30 +26,35 @@ public class Server {
     private static final int BUFFER_SIZE = 1024;
     private static boolean leader=false;
     private static int round=1;
+    private static Queue<String> queue = new LinkedList<>();
     private static Map<String, Integer> clientsRequests = new HashMap<>();
-    private static Map<String, String> clientsChain = new HashMap<>();
+    private static Map<String, List<String>> clientsChain = new HashMap<>();
+    
     private static Map<String, Integer> consensusValue = new HashMap<>();
     private static List<String> receivedIds = new ArrayList<>();
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     private static int nounce=1000;
     private static final int timeout = 5000; // 5 seconds
-    private static final int maxRetries = 10;
+    
     
     private static PrivateKey privateKey;
     
-    private static int quorum=0;
+    
     private static int quorum_prepares=0;
     private static int messageId=0;
     private static int consensus_instance=1;
     private static boolean consensus_started=false;
+    private static int nServers;
 
 
     public static void main(String[] args) throws Exception {
-        
-        SERVER_PORT=Integer.parseInt(args[0]);
-        int lowestPort=Integer.parseInt(args[1]);
-        String[] ports = new String[args.length-1];
-        for(int i=1;i< args.length;i++){
+        System.out.println(args[0]);
+        nServers=Integer.parseInt(args[0]);
+        SERVER_PORT=Integer.parseInt(args[1]);
+        int lowestPort=Integer.parseInt(args[2]);
+        String[] ports = new String[args.length-2];
+        for(int i=2;i< args.length;i++){
+            
             PublicKey pubKey;
             pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
             publicKeys.put(args[i],pubKey);
@@ -57,15 +62,14 @@ public class Server {
              
             
 
-            if(args[0].equals(args[i])){
-                privateKey=loadPrivateKeyFromFile(args[0]+"Priv.key");
+            if(args[1].equals(args[i])){
+                privateKey=loadPrivateKeyFromFile(args[1]+"Priv.key");
             }
-            ports[i-1]=args[i];
+            ports[i-2]=args[i];
             
             
         }
-        PublicKey pubKey=loadPublicKeyFromFile("clientPub.key");
-        publicKeys.put("Client",pubKey);
+        
         if(lowestPort==SERVER_PORT){
             leader=true;
         } 
@@ -170,7 +174,22 @@ public class Server {
                  sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                 socket.send(sendPacket);
 
-                analyse_command(command,ports);
+                Thread thread = new Thread(new Runnable()  {
+                    public void run()  {
+                        try{
+                            System.out.println("analysing command "+command);
+                            analyse_command(command,ports);
+                            
+                        }catch(Exception e){
+                            System.out.println("erro");
+                            e.printStackTrace();
+                        }
+                        
+                    }
+                });
+                thread.start();
+
+                
             }
             
             
@@ -234,7 +253,7 @@ public class Server {
             
             
             System.out.println("commits received "+consensusValue.get(tokens[4]));
-            if(consensusValue.get(tokens[4])==3){
+            if(consensusValue.get(tokens[4])>=3){
                 consensusValue.put(tokens[4],0);
                 System.out.println("Deciding COMMIT");
                 decide(command);
@@ -247,7 +266,7 @@ public class Server {
 
     private static void decide(String command){
         System.out.println(command);
-        quorum=0;
+        
         
         quorum_prepares=0;
         consensus_instance++;
@@ -284,7 +303,7 @@ public class Server {
 
         String[] tokens= str.split("_");
         if(tokens[1].equals("Client"))
-            publicKey=publicKeys.get("Client");
+            publicKey=publicKeys.get(tokens[2]);
         else
             publicKey=publicKeys.get(tokens[0]);
 
@@ -315,11 +334,6 @@ public class Server {
             
             broadcast(start, ports);
             
-            /*Thread.sleep(5000);
-            System.out.println(quorum);
-            if(quorum>=2){
-                System.out.println("Majority received");
-            }*/
 
             
         }
@@ -327,9 +341,10 @@ public class Server {
     }
 
     public static void broadcast(String message, String[] ports) throws Exception{
-        
+        int i=0;
         for (String port : ports) {
-            
+            if(i==nServers)
+                break;
             
 
             final String arg = port;
@@ -341,12 +356,13 @@ public class Server {
                         
                     }catch(Exception e){
                         System.out.println("erro");
+                        e.printStackTrace();
                     }
                     
                 }
             });
             thread.start();
-                
+            i++;
             
             
         }
@@ -379,17 +395,31 @@ public class Server {
     }
 
     private static void parseCommand (String command){
+        //2_1_Joao_1_adeus
         String[] tokens= command.split("_");
         int requestId=Integer.parseInt(tokens[3]);
-        /*if(clientsRequests.containsKey(tokens[2])){
-            if(requestId==clientsRequests.get(tokens[0])){
+        if(clientsRequests.containsKey(tokens[2])){
+            System.out.println("request id expected "+clientsRequests.get(tokens[2]));
+            if(requestId==clientsRequests.get(tokens[2])){
                 clientsRequests.put(tokens[2],requestId++);
+                clientsChain.get(tokens[2]).add(tokens[4]);
+            }
+            else{
+                //waiting for previous commands;
             }
         }else{
             if(requestId==0){
-                clientsRequests.put(tokens[2],requestId++);
+                System.out.println("asfnasfjas");
+                
+                clientsRequests.put(tokens[2],1);
+                clientsChain.put(tokens[2], new ArrayList<>());
+                clientsChain.get(tokens[2]).add(tokens[4]);
             }
-        }*/
+            else{
+                //waiting for previous commands;
+            }
+        }
+        System.out.println("Map of lists: " + clientsChain);
     }
 
     private static void sendMessage(String message, String port) throws Exception{
@@ -444,7 +474,7 @@ public class Server {
                     if(tokens[2].equals("ACK")){
                         System.out.println("Response Ok");
                         
-                        quorum++;
+                        
                     }
                     
                 }

@@ -52,7 +52,9 @@ public class Server {
         nServers=Integer.parseInt(args[0]);
         SERVER_PORT=Integer.parseInt(args[1]);
         int lowestPort=Integer.parseInt(args[2]);
-        String[] ports = new String[args.length-2];
+        String[] ports = new String[args.length-2];        
+        // Load RSA keys from files
+
         for(int i=2;i< args.length;i++){
             
             PublicKey pubKey;
@@ -75,22 +77,11 @@ public class Server {
         } 
 
         
-        // Load RSA keys from files
-        
-        
-        
 
         // Create a DatagramSocket
         DatagramSocket socket = new DatagramSocket(SERVER_PORT);
+               
         
-        
-       
-
-        //byte[] ciphertext = aesCypher("Hello",aesKey);
-        //aesDecypher(aesKey,ciphertext);
-
-        
-        //start(socket,ports);
         Thread.sleep(4000);
         while(true){
             byte[] data = new byte[BUFFER_SIZE];
@@ -192,23 +183,6 @@ public class Server {
                 
             }
             
-            
-
-            //parseCommand(command);
-            //sendMessage(receivedMessage, "1235", socket);
-            /*if(SERVER_PORT==1234 && ola==false){
-                ola=true;
-                broadcast(receivedMessage, ports);
-            }else{*/
-                
-            
-            
-                
-            
-            
-
-            
-            //System.out.println("Received from server: " + receivedMessage);
         }
         // Close the socket
         //socket.close();
@@ -258,9 +232,7 @@ public class Server {
                 System.out.println("Deciding COMMIT");
                 decide(command);
             }
-            //
-            //String commit="COMMIT_"+command;
-            //broadcast(commit,ports);
+            
         }
     }
 
@@ -268,11 +240,12 @@ public class Server {
         System.out.println(command);
         
         
+        
+        parseCommand(command);
         quorum_prepares=0;
         consensus_instance++;
         consensusValue.clear();
         consensus_started=false;
-        parseCommand(command);
 
     }
 
@@ -404,9 +377,6 @@ public class Server {
                 clientsRequests.put(tokens[2],requestId++);
                 clientsChain.get(tokens[2]).add(tokens[4]);
             }
-            else{
-                //waiting for previous commands;
-            }
         }else{
             if(requestId==0){
                 System.out.println("asfnasfjas");
@@ -414,9 +384,6 @@ public class Server {
                 clientsRequests.put(tokens[2],1);
                 clientsChain.put(tokens[2], new ArrayList<>());
                 clientsChain.get(tokens[2]).add(tokens[4]);
-            }
-            else{
-                //waiting for previous commands;
             }
         }
         System.out.println("Map of lists: " + clientsChain);

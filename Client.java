@@ -28,7 +28,7 @@ public class Client {
     
     private static PrivateKey privateKey;
     private static final Object lock = new Object();
-
+    private static int neededResponses=0;
     public static void main(String[] args) throws Exception {
         clientName=args[0];
         nServers=Integer.parseInt(args[1]);
@@ -40,7 +40,7 @@ public class Client {
             ports[i-2]=args[i];
 
             if(clientName.equals(args[i])){
-                System.out.println("chave privv");
+                
                 privateKey = loadPrivateKeyFromFile(args[i]+"Priv.key");
             }
         }
@@ -63,23 +63,11 @@ public class Client {
             
 
         }
-        // Create a message to be signed
+        
         
 
 
         
-        
-/* 
-        Signature dsaForVerify = Signature.getInstance("SHA1withDSA");
-        dsaForVerify.initVerify(publicKey);
-        dsaForVerify.update(messageBytes);
-        boolean verifies = dsaForVerify.verify(signature);
-        System.out.println("Signature verifies: " + verifies);*/
-
-        // Create a DatagramPacket containing the message and the server address/port
-        
-        // Close the socket
-        //socket.close();
     }
 
     private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
@@ -135,7 +123,6 @@ public class Client {
         publicKey=publicKeys.get(tokens[0]);
 
         Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
-
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
 
@@ -228,6 +215,10 @@ public class Client {
                 }
                 else{
                     if(tokens[2].equals("ACK")){
+                        neededResponses++;
+                        if(neededResponses>=2){
+                            System.out.println("Command "+message+ "was applied");
+                        }
                         System.out.println("Response Ok");
                         
                         

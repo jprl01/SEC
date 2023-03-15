@@ -43,7 +43,7 @@ public class Server {
 
 
     public static void main(String[] args) throws Exception {
-        System.out.println(args[0]);
+        
         nServers=Integer.parseInt(args[0]);
         byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
@@ -105,14 +105,14 @@ public class Server {
             if(tokens[1].equals("Client")){
                 synchronized(lock){
                     if(consensus_started){
-                        System.out.println("Consensus already started");
+                        //System.out.println("Consensus already started");
                         if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
                             System.out.println("duplicated message");
                             continue;
                         }
 
                         queue.add(str);
-                        System.out.println("added "+queue.peek());
+                        //System.out.println("added "+queue.peek());
 
                         receivedIds.add(tokens[2]+"_"+tokens[3]);
                         String response;
@@ -184,7 +184,7 @@ public class Server {
                 else{
                     receivedIds.add(tokens[0]+"_"+tokens[2]);
                 }
-                System.out.println("Received from port: "+tokens[0]);
+                //System.out.println("Received from port: "+tokens[0]);
                 command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
                 
                 
@@ -268,7 +268,7 @@ public class Server {
     }
 
     private static void decide(String command) throws Exception{
-        System.out.println(command);
+        //System.out.println(command);
         
         
         
@@ -342,9 +342,9 @@ public class Server {
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
-                            System.out.println("consensus "+command);
+                            //System.out.println("consensus "+command);
                             consensus(command,ports);
-                            System.out.println("consensus "+command);
+                            //System.out.println("consensus "+command);
                             
                         }catch(Exception e){
                             System.out.println("erro");
@@ -489,7 +489,7 @@ public class Server {
                 response=verifySign(response.getBytes());
                 String[] tokens= response.split("_");
                 //verify freshness
-                System.out.println("Received from Server port: "+tokens[0]);
+                System.out.println("Received response from Server port: "+tokens[0]);
 
                 
                 if(Integer.parseInt(tokens[1])!=messageNounce){
@@ -497,7 +497,7 @@ public class Server {
                 }
                 else{
                     if(tokens[2].equals("ACK")){
-                        System.out.println("Response Ok");
+                        //System.out.println("Response Ok");
                         
                         
                     }

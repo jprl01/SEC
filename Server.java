@@ -2,6 +2,10 @@ import java.net.*;
 import java.security.*;
 
 import java.util.*;
+
+import javax.lang.model.util.ElementScanner14;
+import javax.sound.sampled.BooleanControl;
+
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -103,26 +107,38 @@ public class Server {
              tokens= str.split("_");
             
             if(tokens[1].equals("Client")){
+                int idRequest=Integer.parseInt(tokens[3]);
                 synchronized(lock){
                     if(consensus_started){
+                        
                         //System.out.println("Consensus already started");
                         if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
                             System.out.println("duplicated message");
                             continue;
                         }
 
-                        queue.add(str);
+                        //verify if order is correct
+                        if(leader){
+                            System.out.println("Incrementar requests2");
+                            if(clientsRequests.get(tokens[2])==idRequest){
+                                System.out.println(" comando certo");
+                                clientsRequests.put(tokens[2],idRequest+1);
+                            }
+                            else{
+                                System.out.println(" comando errado");
+                                continue;
+                            }
+                                
+                            queue.add(str);
+                        }
+                        
+
+                        
                         //System.out.println("added "+queue.peek());
 
                         receivedIds.add(tokens[2]+"_"+tokens[3]);
-                        String response;
-                        if(leader){
-                            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
-        
-                            
-                        }else{
-                            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
-                        }
+                        String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
+                        
                         byte[] sendData = sign(response);
                         sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                         socket.send(sendPacket);
@@ -140,36 +156,71 @@ public class Server {
                     continue;
                     
                 }
-                else{
-                    if(leader){
-                        response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
-    
-                        
-                    }else{
-                        response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
-                    }
-                    receivedIds.add(tokens[2]+"_"+tokens[3]);
+
+                
+                
+                    
+                response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";                   
+                //receivedIds.add(tokens[2]+"_"+tokens[3]);
                    
-                }           
+                          
                 
                 
-                byte[] sendData = sign(response);
-                sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                socket.send(sendPacket);
+                
                 
                 if(leader){
                     
-                    int requestId;
+                    
                     command=str.substring(tokens[0].length()+tokens[1].length()+2);
                     
-                    if(clientsRequests.containsKey(tokens[2]))
-                        requestId=clientsRequests.get(tokens[2])+1;
-                    else
-                        requestId=1;
-                    clientsRequests.put(tokens[2],requestId);
-                    consensus(command,ports);
+                    if(!clientsRequests.containsKey(tokens[2])){
+                        
+                        if(idRequest==0){
+                            System.out.println(" comando certo");
+                            clientsRequests.put(tokens[2],1);
+                        }                            
+                        else{
+                            System.out.println(" comando errado");
+                            consensus_started=false;
+                            continue;
+                        }
+                            
+                    }
+                    else if(clientsRequests.get(tokens[2])==idRequest){
+                        System.out.println("comando certo");
+                        clientsRequests.put(tokens[2],idRequest+1);
+                    }
+                    else{
+                        System.out.println(" comando errado");
+                        consensus_started=false;
+                        continue;
+                    }
+                        
+
+
+
+                    Thread thread = new Thread(new Runnable()  {
+                        public void run()  {
+                            try{
+                                
+                                consensus(command,ports);
+                                
+                                
+                            }catch(Exception e){
+                                System.out.println("erro");
+                                e.printStackTrace();
+                            }
+                            
+                        }
+                    });
+                    thread.start();
+                    
                 }
-                
+
+                receivedIds.add(tokens[2]+"_"+tokens[3]);
+                byte[] sendData = sign(response);
+                sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                socket.send(sendPacket);
                 
 
                 
@@ -198,8 +249,11 @@ public class Server {
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
+                            boolean leaderSent=false;
+                            if(lowestPort==Integer.parseInt(tokens[0]))
+                                leaderSent=true;
                             System.out.println("analysing command "+command);
-                            analyse_command(command,ports);
+                            analyse_command(command,ports,leaderSent);
                             
                         }catch(Exception e){
                             System.out.println("erro");
@@ -209,9 +263,11 @@ public class Server {
                     }
                 });
                 thread.start();
+                
 
                 
             }
+            
             
         }
         // Close the socket
@@ -220,10 +276,10 @@ public class Server {
         
     }
 
-    private static void analyse_command(String command,String ports[]) throws Exception{
+    private static void analyse_command(String command,String ports[], boolean leaderSent) throws Exception{
         String[] tokens= command.split("_");
         
-        if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance))){
+        if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance)) && leaderSent){
             
             command=command.substring(12);
             
@@ -257,7 +313,7 @@ public class Server {
             consensusValue.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],requests); 
             
             
-            System.out.println("commits received "+consensusValue.get(tokens[4]));
+            System.out.println("commits received "+consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4]));
             if(consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])>=byznatineQuorum){
                 consensusValue.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],0);
                 System.out.println("Deciding COMMIT");
@@ -275,8 +331,7 @@ public class Server {
         parseCommand(command);
         quorum_prepares=0;
         consensus_instance++;
-        consensusValue.clear();
-        
+                
         commmandsQueue();
 
     }
@@ -359,6 +414,7 @@ public class Server {
             
         }
         else{
+            System.out.println("Nothing to update");
             consensus_started=false;
         }
     }
@@ -369,9 +425,9 @@ public class Server {
         if(leader){
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
+
             broadcast(start, ports);
             
-
             
         }
         

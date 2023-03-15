@@ -51,10 +51,20 @@ public class Client {
 
         // Create a DatagramSocket
         DatagramSocket socket = new DatagramSocket();
-
+        
         while(true){
+            String message;
             System.out.println("Type something to server");
-            String message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
+            if(messageId==1){
+                message ="Client_"+ clientName + '_' +  0 + '_' + myObj.nextLine();
+                messageId++;
+            }else if(messageId==0){
+                message ="Client_"+ clientName + '_' +  1 + '_' + myObj.nextLine();
+                messageId++;
+            }else{
+                message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
+            }
+            
             broadcast(message,ports);
             
 

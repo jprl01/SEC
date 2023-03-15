@@ -248,18 +248,18 @@ public class Server {
         else if(tokens[0].equals("COMMIT") && tokens[1].equals(String.valueOf(consensus_instance))){
             command=command.substring(7);
             int requests;
-            if(!consensusValue.containsKey(tokens[4])){
+            if(!consensusValue.containsKey(tokens[2]+"_"+tokens[3]+"_"+tokens[4])){
                 requests=1;
             }else{
-                requests=consensusValue.get(tokens[4])+1;
+                requests=consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])+1;
                 
             }
-            consensusValue.put(tokens[4],requests); 
+            consensusValue.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],requests); 
             
             
             System.out.println("commits received "+consensusValue.get(tokens[4]));
-            if(consensusValue.get(tokens[4])>=byznatineQuorum){
-                consensusValue.put(tokens[4],0);
+            if(consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])>=byznatineQuorum){
+                consensusValue.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],0);
                 System.out.println("Deciding COMMIT");
                 decide(command);
             }

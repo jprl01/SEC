@@ -1,16 +1,12 @@
 import java.net.*;
 import java.security.*;
-import javax.crypto.*;
+
 import java.util.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
+
 import java.util.Scanner; 
 import java.nio.charset.StandardCharsets;
 
@@ -20,16 +16,19 @@ public class Client {
     private static int nounce=1000;
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     
-    private static final int BUFFER_SIZE = 1024;
+    
     private static int messageId=0;
     private static String clientName;
-    private static int seqNumber = 0;
+    
     private static int nServers;
     
     private static PrivateKey privateKey;
     private static final Object lock = new Object();
     private static int neededResponses=0;
+    private static int faults=1;
+    private static int quorum;
     public static void main(String[] args) throws Exception {
+        quorum=faults+1;
         clientName=args[0];
         nServers=Integer.parseInt(args[1]);
         String[] ports = new String[args.length-2];
@@ -60,8 +59,6 @@ public class Client {
             
 
         // Send the packet to the server
-            
-
         }
         
         
@@ -216,7 +213,7 @@ public class Client {
                 else{
                     if(tokens[2].equals("ACK")){
                         neededResponses++;
-                        if(neededResponses>=2){
+                        if(neededResponses>=quorum){
                             System.out.println("Command "+message+ "was applied");
                         }
                         System.out.println("Response Ok");

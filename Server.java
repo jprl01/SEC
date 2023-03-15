@@ -1,24 +1,16 @@
 import java.net.*;
 import java.security.*;
-import javax.crypto.*;
+
 import java.util.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import javax.print.DocFlavor.STRING;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
 
 public class Server {
 
-    private static String CLIENT_KEY_FILE = "clientPub.key";
-    private static String PRIVATE_KEY_FILE = "clientPriv.key";
     
     private static final Object lock = new Object();
     
@@ -34,7 +26,7 @@ public class Server {
     private static List<String> receivedIds = new ArrayList<>();
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     private static int nounce=1000;
-    private static final int timeout = 5000; // 5 seconds
+    
     
     
     private static PrivateKey privateKey;
@@ -45,14 +37,18 @@ public class Server {
     private static int consensus_instance=1;
     private static boolean consensus_started=false;
     private static int nServers;
+    private static int faults=1;
+    private static int byznatineQuorum;
+    private static String[] ports;
 
 
     public static void main(String[] args) throws Exception {
         System.out.println(args[0]);
         nServers=Integer.parseInt(args[0]);
+        byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
         int lowestPort=Integer.parseInt(args[2]);
-        String[] ports = new String[args.length-2];        
+         ports = new String[args.length-2];        
         // Load RSA keys from files
 
         for(int i=2;i< args.length;i++){
@@ -82,14 +78,20 @@ public class Server {
         DatagramSocket socket = new DatagramSocket(SERVER_PORT);
                
         
-        Thread.sleep(4000);
+        
         while(true){
+            
+            String[] tokens;
+            String command;
             byte[] data = new byte[BUFFER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(data, data.length);
             DatagramPacket sendPacket;
-
-            // Receive the packet from the client
+            
+            
             socket.receive(receivePacket);
+            
+            // Receive the packet from the client
+            
             int clientPort = receivePacket.getPort();
 
             
@@ -98,12 +100,32 @@ public class Server {
             String str = verifySign(receivedMessage.getBytes());
             InetAddress clientAddress = receivePacket.getAddress();
             
-            String[] tokens= str.split("_");
+             tokens= str.split("_");
             
             if(tokens[1].equals("Client")){
                 synchronized(lock){
                     if(consensus_started){
                         System.out.println("Consensus already started");
+                        if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
+                            System.out.println("duplicated message");
+                            continue;
+                        }
+
+                        queue.add(str);
+                        System.out.println("added "+queue.peek());
+
+                        receivedIds.add(tokens[2]+"_"+tokens[3]);
+                        String response;
+                        if(leader){
+                            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
+        
+                            
+                        }else{
+                            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_NAK";
+                        }
+                        byte[] sendData = sign(response);
+                        sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                        socket.send(sendPacket);
                         continue;
                     }
                         
@@ -136,7 +158,15 @@ public class Server {
                 socket.send(sendPacket);
                 
                 if(leader){
-                    String command=str.substring(tokens[0].length()+tokens[1].length()+2);
+                    
+                    int requestId;
+                    command=str.substring(tokens[0].length()+tokens[1].length()+2);
+                    
+                    if(clientsRequests.containsKey(tokens[2]))
+                        requestId=clientsRequests.get(tokens[2])+1;
+                    else
+                        requestId=1;
+                    clientsRequests.put(tokens[2],requestId);
                     consensus(command,ports);
                 }
                 
@@ -155,7 +185,7 @@ public class Server {
                     receivedIds.add(tokens[0]+"_"+tokens[2]);
                 }
                 System.out.println("Received from port: "+tokens[0]);
-                String command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
+                command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
                 
                 
                 
@@ -194,6 +224,7 @@ public class Server {
         String[] tokens= command.split("_");
         
         if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance))){
+            
             command=command.substring(12);
             
             String prepare="PREPARE_"+command;
@@ -207,7 +238,7 @@ public class Server {
             command=command.substring(8);
             String commit="COMMIT_"+command;
             quorum_prepares++;
-            if(quorum_prepares==3){
+            if(quorum_prepares==byznatineQuorum){
                 quorum_prepares=0;
                 System.out.println("Broadcasting COMMIT");
                 broadcast(commit,ports);
@@ -227,7 +258,7 @@ public class Server {
             
             
             System.out.println("commits received "+consensusValue.get(tokens[4]));
-            if(consensusValue.get(tokens[4])>=3){
+            if(consensusValue.get(tokens[4])>=byznatineQuorum){
                 consensusValue.put(tokens[4],0);
                 System.out.println("Deciding COMMIT");
                 decide(command);
@@ -236,7 +267,7 @@ public class Server {
         }
     }
 
-    private static void decide(String command){
+    private static void decide(String command) throws Exception{
         System.out.println(command);
         
         
@@ -245,7 +276,8 @@ public class Server {
         quorum_prepares=0;
         consensus_instance++;
         consensusValue.clear();
-        consensus_started=false;
+        
+        commmandsQueue();
 
     }
 
@@ -297,7 +329,39 @@ public class Server {
 
         return str;
     }   
-
+    public static void commmandsQueue() throws Exception{
+        if(!queue.isEmpty()){
+            System.out.println("There are commands to run");
+            
+            String str=queue.remove();
+            
+            String[]tokens= str.split("_");
+            String command=str.substring(tokens[0].length()+tokens[1].length()+2);
+            
+            if(leader){
+                Thread thread = new Thread(new Runnable()  {
+                    public void run()  {
+                        try{
+                            System.out.println("consensus "+command);
+                            consensus(command,ports);
+                            System.out.println("consensus "+command);
+                            
+                        }catch(Exception e){
+                            System.out.println("erro");
+                            e.printStackTrace();
+                        }
+                        
+                    }
+                });
+                thread.start();
+            }
+            
+            
+        }
+        else{
+            consensus_started=false;
+        }
+    }
     
 
     public static void start( String message,String[] ports) throws Exception{
@@ -370,21 +434,15 @@ public class Server {
     private static void parseCommand (String command){
         //2_1_Joao_1_adeus
         String[] tokens= command.split("_");
-        int requestId=Integer.parseInt(tokens[3]);
-        if(clientsRequests.containsKey(tokens[2])){
-            System.out.println("request id expected "+clientsRequests.get(tokens[2]));
-            if(requestId==clientsRequests.get(tokens[2])){
-                clientsRequests.put(tokens[2],requestId++);
-                clientsChain.get(tokens[2]).add(tokens[4]);
-            }
+        
+        if(clientsChain.containsKey(tokens[2])){
+            clientsChain.get(tokens[2]).add(tokens[4]);
+            
         }else{
-            if(requestId==0){
-                System.out.println("asfnasfjas");
-                
-                clientsRequests.put(tokens[2],1);
-                clientsChain.put(tokens[2], new ArrayList<>());
-                clientsChain.get(tokens[2]).add(tokens[4]);
-            }
+            
+            clientsChain.put(tokens[2], new ArrayList<>());
+            clientsChain.get(tokens[2]).add(tokens[4]);
+            
         }
         System.out.println("Map of lists: " + clientsChain);
     }

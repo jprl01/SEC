@@ -26,6 +26,7 @@ public class Server {
     private static Map<String, Integer> clientsRequests = new HashMap<>();
     private static Map<String, List<String>> clientsChain = new HashMap<>();
     
+    private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
     private static List<String> receivedIds = new ArrayList<>();
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
@@ -36,7 +37,7 @@ public class Server {
     private static PrivateKey privateKey;
     
     
-    private static int quorum_prepares=0;
+    
     private static int messageId=0;
     private static int consensus_instance=1;
     private static boolean consensus_started=false;
@@ -308,9 +309,17 @@ public class Server {
         else if(tokens[0].equals("PREPARE") && tokens[1].equals(String.valueOf(consensus_instance))){
             command=command.substring(8);
             String commit="COMMIT_"+command;
-            quorum_prepares++;
-            if(quorum_prepares==byznatineQuorum){
-                quorum_prepares=0;
+            int requests;
+            if(!consensusValuePrepare.containsKey(tokens[2]+"_"+tokens[3]+"_"+tokens[4])){
+                requests=1;
+            }else{
+                requests=consensusValuePrepare.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])+1;
+                
+            }
+            consensusValuePrepare.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],requests);
+            
+            if(consensusValuePrepare.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])>=byznatineQuorum){
+                consensusValuePrepare.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],0);
                 System.out.println("Broadcasting COMMIT");
                 broadcast(commit,ports);
             }
@@ -344,7 +353,7 @@ public class Server {
         
         
         parseCommand(command);
-        quorum_prepares=0;
+        
         consensus_instance++;
                 
         commmandsQueue();

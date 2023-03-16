@@ -55,15 +55,9 @@ public class Client {
         while(true){
             String message;
             System.out.println("Type something to server");
-            if(messageId==1){
-                message ="Client_"+ clientName + '_' +  0 + '_' + myObj.nextLine();
-                messageId++;
-            }else if(messageId==0){
-                message ="Client_"+ clientName + '_' +  1 + '_' + myObj.nextLine();
-                messageId++;
-            }else{
-                message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
-            }
+            
+            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
+            
             
             broadcast(message,ports);
             
@@ -225,6 +219,7 @@ public class Client {
                         neededResponses++;
                         if(neededResponses>=quorum){
                             System.out.println("Command "+message+ "was applied");
+                            neededResponses=0;
                         }
                         System.out.println("Response Ok");
                         

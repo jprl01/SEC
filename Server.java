@@ -44,6 +44,7 @@ public class Server {
     private static int faults=1;
     private static int byznatineQuorum;
     private static String[] ports;
+    private static int lowestPort;
 
 
     public static void main(String[] args) throws Exception {
@@ -51,7 +52,7 @@ public class Server {
         nServers=Integer.parseInt(args[0]);
         byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
-        int lowestPort=Integer.parseInt(args[2]);
+        lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
         // Load RSA keys from files
 
@@ -85,175 +86,146 @@ public class Server {
         
         while(true){
             
-            String[] tokens;
-            String command;
+            
             byte[] data = new byte[BUFFER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(data, data.length);
-            DatagramPacket sendPacket;
+            
             
             
             socket.receive(receivePacket);
-            
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+                    try{
+                        
+                        process(receivePacket,socket);
+                        
+                        
+                    }catch(Exception e){
+                        System.out.println("erro");
+                        e.printStackTrace();
+                    }
+                    
+                }
+            });
+            thread.start();
+            //lala(receivePacket, socket);    
             // Receive the packet from the client
             
-            int clientPort = receivePacket.getPort();
+            
+            
+            
+        }
+        // Close the socket
+        //socket.close();
+        
+        
+    }
+
+    private static void process(DatagramPacket receivePacket,DatagramSocket socket) throws Exception{
+        String[] tokens;
+        String command;
+        DatagramPacket sendPacket;
+        int clientPort = receivePacket.getPort();
 
             
             
-            String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-            String str = verifySign(receivedMessage.getBytes());
-            InetAddress clientAddress = receivePacket.getAddress();
-            
-             tokens= str.split("_");
-            
-            if(tokens[1].equals("Client")){
-                int idRequest=Integer.parseInt(tokens[3]);
-                synchronized(lock){
-                    if(consensus_started){
-                        
-                        //System.out.println("Consensus already started");
-                        if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
-                            System.out.println("duplicated message");
-                            continue;
-                        }
+        String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
+        String str = verifySign(receivedMessage.getBytes());
+        InetAddress clientAddress = receivePacket.getAddress();
+        
+         tokens= str.split("_");
+        
+        if(tokens[1].equals("Client")){
+            int idRequest=Integer.parseInt(tokens[3]);
+            if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
+                System.out.println("duplicated message");
+                return;
+                
+            }   
+            synchronized(lock){
+                if(consensus_started){  
 
-                        //verify if order is correct
-                        if(leader){
-                            System.out.println("Incrementar requests2");
-                            if(clientsRequests.get(tokens[2])==idRequest){
-                                System.out.println(" comando certo");
-                                clientsRequests.put(tokens[2],idRequest+1);
-                            }
-                            else{
-                                System.out.println(" comando errado");
-                                continue;
-                            }
-                                
-                            queue.add(str);
-                        }
-                        
-
-                        
-                        //System.out.println("added "+queue.peek());
-
-                        receivedIds.add(tokens[2]+"_"+tokens[3]);
-                        String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
-                        
-                        byte[] sendData = sign(response);
-                        sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                        socket.send(sendPacket);
-                        continue;
-                    }
-                        
-                    consensus_started=true;
-                }
-                
-                
-                String response;
-                
-                if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
-                    System.out.println("duplicated message");
-                    continue;
-                    
-                }
-
-                
-                
-                    
-                response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";                   
-                //receivedIds.add(tokens[2]+"_"+tokens[3]);
-                   
-                          
-                
-                
-                
-                
-                if(leader){
-                    
-                    
-                    command=str.substring(tokens[0].length()+tokens[1].length()+2);
-                    
-                    if(!clientsRequests.containsKey(tokens[2])){
-                        
-                        if(idRequest==0){
+                    //verify if order is correct
+                    if(leader){
+                        System.out.println("Incrementar requests2");
+                        if(clientsRequests.get(tokens[2])==idRequest){
                             System.out.println(" comando certo");
-                            clientsRequests.put(tokens[2],1);
-                        }                            
+                            clientsRequests.put(tokens[2],idRequest+1);
+                        }
                         else{
                             System.out.println(" comando errado");
-                            consensus_started=false;
-                            continue;
+                            return;
                         }
                             
+                        queue.add(str);
                     }
-                    else if(clientsRequests.get(tokens[2])==idRequest){
-                        System.out.println("comando certo");
-                        clientsRequests.put(tokens[2],idRequest+1);
-                    }
+                    
+
+                    
+                    //System.out.println("added "+queue.peek());
+
+                    receivedIds.add(tokens[2]+"_"+tokens[3]);
+                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
+                    
+                    byte[] sendData = sign(response);
+                    sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                    socket.send(sendPacket);
+                    return;
+                }
+                    
+                consensus_started=true;
+            }
+            
+            
+            String response;
+            
+                        
+                
+            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";                   
+            //receivedIds.add(tokens[2]+"_"+tokens[3]);
+                
+                        
+            
+            
+            
+            
+            if(leader){
+                
+                
+                command=str.substring(tokens[0].length()+tokens[1].length()+2);
+                
+                if(!clientsRequests.containsKey(tokens[2])){
+                    
+                    if(idRequest==0){
+                        System.out.println(" comando certo");
+                        clientsRequests.put(tokens[2],1);
+                    }                            
                     else{
                         System.out.println(" comando errado");
                         consensus_started=false;
-                        continue;
+                        return;
                     }
                         
-
-
-
-                    Thread thread = new Thread(new Runnable()  {
-                        public void run()  {
-                            try{
-                                
-                                consensus(command,ports);
-                                
-                                
-                            }catch(Exception e){
-                                System.out.println("erro");
-                                e.printStackTrace();
-                            }
-                            
-                        }
-                    });
-                    thread.start();
-                    
                 }
-
-                receivedIds.add(tokens[2]+"_"+tokens[3]);
-                byte[] sendData = sign(response);
-                sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                socket.send(sendPacket);
-                
-
-                
-                
-            }else{
-
-                if(receivedIds.contains(tokens[0]+"_"+tokens[2])){
-                    System.out.println("duplicated message");
-                    continue;
-                    
+                else if(clientsRequests.get(tokens[2])==idRequest){
+                    System.out.println("comando certo");
+                    clientsRequests.put(tokens[2],idRequest+1);
                 }
                 else{
-                    receivedIds.add(tokens[0]+"_"+tokens[2]);
+                    System.out.println(" comando errado");
+                    consensus_started=false;
+                    return;
                 }
-                //System.out.println("Received from port: "+tokens[0]);
-                command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
-                
-                
-                
-                
-                String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
-                byte[] sendData = sign(response);
-                 sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                socket.send(sendPacket);
+                    
+
+
 
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
-                            boolean leaderSent=false;
-                            if(lowestPort==Integer.parseInt(tokens[0]))
-                                leaderSent=true;
-                            System.out.println("analysing command "+command);
-                            analyse_command(command,ports,leaderSent);
+                            
+                            consensus(command,ports);
+                            
                             
                         }catch(Exception e){
                             System.out.println("erro");
@@ -264,16 +236,59 @@ public class Server {
                 });
                 thread.start();
                 
+            }
 
+            receivedIds.add(tokens[2]+"_"+tokens[3]);
+            byte[] sendData = sign(response);
+            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+            socket.send(sendPacket);
+            
+
+            
+            
+        }else{
+
+            if(receivedIds.contains(tokens[0]+"_"+tokens[2])){
+                System.out.println("duplicated message");
+                return;
                 
             }
+            else{
+                receivedIds.add(tokens[0]+"_"+tokens[2]);
+            }
+            //System.out.println("Received from port: "+tokens[0]);
+            command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
             
+            
+            
+            
+            String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
+            byte[] sendData = sign(response);
+            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+            socket.send(sendPacket);
+
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+                    try{
+                        boolean leaderSent=false;
+                        if(lowestPort==Integer.parseInt(tokens[0]))
+                            leaderSent=true;
+                        System.out.println("analysing command "+command);
+                        analyse_command(command,ports,leaderSent);
+                        
+                    }catch(Exception e){
+                        System.out.println("erro");
+                        e.printStackTrace();
+                    }
+                    
+                }
+            });
+            thread.start();
+            
+
             
         }
-        // Close the socket
-        //socket.close();
-        
-        
+
     }
 
     private static void analyse_command(String command,String ports[], boolean leaderSent) throws Exception{

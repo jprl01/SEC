@@ -13,7 +13,7 @@ import java.security.spec.X509EncodedKeySpec;
 
 import java.nio.charset.StandardCharsets;
 
-public class Server {
+public class ByzantineServer {
 
     
     private static final Object lock = new Object();
@@ -56,6 +56,8 @@ public class Server {
         lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
         // Load RSA keys from files
+
+        System.out.println("I am a byzantine server!");
 
         for(int i=2;i< args.length;i++){
             
@@ -298,11 +300,15 @@ public class Server {
         if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance)) && leaderSent){
             
             command=command.substring(12);
-            
-            String prepare="PREPARE_"+command;
+
+            String[] byzantineTokens = command.split("_");
+
+            String byzantinePrepare = "PREPARE_"+ byzantineTokens[0] + "_" + byzantineTokens[1] + "_" + byzantineTokens[2] + "_" + byzantineTokens[3] + "_" + "byzantine";
+            System.out.println("\n My byzantine value is «byzantine»: " + byzantinePrepare);
+            // String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            broadcast(prepare,ports);
+            broadcast(byzantinePrepare,ports);
             
             
         }

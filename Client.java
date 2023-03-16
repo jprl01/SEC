@@ -218,7 +218,7 @@ public class Client {
                     if(tokens[2].equals("ACK")){
                         neededResponses++;
                         if(neededResponses>=quorum){
-                            System.out.println("Command "+message+ "was applied");
+                            System.out.println("Command "+message+ " was applied");
                             neededResponses=0;
                         }
                         System.out.println("Response Ok");

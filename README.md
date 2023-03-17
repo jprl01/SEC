@@ -20,12 +20,15 @@
 
 In order to guarantee the required security and design specifications, we designed a set of 5 demo tests that consist of running 4 servers and
 1 client, here we'll explain in depth how each one works, for running commands check the next section.
+**- Correct Functionality(PuppetMaster):**
+* A regular client
+* Four regular servers
 
 **- Byzantine Server Attack(ByzantinePuppetMaster):**
 * A regular Client;
 * Three regular Servers;
 * A byzantine Server.
-The byzantine Server always proposes the string "byzantine" in the PREPARE broadcast, no matter what value the Client sent to be added to the blockchain. However, because of the IBFT consensus protocol implemented, a quorum of Servers still decides the correct value (the one proposed by the Client);
+  The byzantine Server always proposes the string "byzantine" in the PREPARE broadcast, no matter what value the Client sent to be added to the blockchain. However, because of the IBFT consensus protocol implemented, a quorum of Servers still decides the correct value (the one proposed by the Client);
 
 **- Duplicate Message Attack(DuplicateMessagePuppetMaster):**
 * A byzantine Client that duplicates the messages sent to a specific server;
@@ -42,12 +45,12 @@ The Servers detect Client is not who they say they are (the private key with whi
 **- Correct Order Message Processing(CorrectOrderPuppetMaster):**
 * A Client which sends messages with unordered ids;
 * 4 regular Servers.
-All the Servers process the different strings sent by the Client in the same order. The Client first sends a message with id 2 and then other with id 1, but all Servers add the message with id 1 to the blockchain before adding the message with id 2.
+  All the Servers process the different strings sent by the Client in the same order. The Client first sends a message with id 2 and then other with id 1, but all Servers add the message with id 1 to the blockchain before adding the message with id 2.
 
 **- Message Waiting in Queue(PendingCommandsPuppetMaster):**
 * A regular Client;
 * Four regular Servers.
-The Client sends multiple messages to the Servers in little time, but all Servers only add each string to the blockchain once and the strings not yet processed are added to a queue. Servers, before starting processing a string, show in the terminal which strings are in the queue. 
+  The Client sends multiple messages to the Servers in little time, but all Servers only add each string to the blockchain once and the strings not yet processed are added to a queue. Servers, before starting processing a string, show in the terminal which strings are in the queue.
 
 **3) Running the tests**
 
@@ -56,15 +59,15 @@ For testing we developed 6 PuppetMasters, what they do is open 5 separate window
 In order to test critical cases we implemented variations of the client and server that are identical, adding/changing only snippets of code to verify the tests described more in depth in our report.
 
 
-- We also recorded 6 videos running the regular case and the 5 tests, which we uploaded on this google drive:
-[Link](https://drive.google.com/drive/folders/1iY1liEoRPWTBK1gv5Wx32qDwiy3i2pS0)
+- We also recorded 6 videos running the regular case and the 5 tests, which we uploaded on this Google Drive folder:
+  [Link](https://drive.google.com/drive/folders/1iY1liEoRPWTBK1gv5Wx32qDwiy3i2pS0)
 
 
 
 **3.1) Commands with PupperMasters(Windows)**
 
 
-The main one being "PuppetMaster.java" which can be ran after compilling with:
+The Correct Functionality and main one being "PuppetMaster.java" can be ran after compilling with:
 ```
 java PuppetMaster
 ```
@@ -139,18 +142,17 @@ java PendingCommandsServer 4 1235 1234 1235 1236 1237 Joao
 ```
 
 ---
-#### Note: 
+#### Note:
 ***The keys used for the cryptographic functions have been previously generated to simplify testing.***
 They follow the naming convention: \<Client/ServerName\> + "Priv"/"Pub" + ".Key"
 - Keys already generated for Servers:
-1234Priv.Key, 1234Pub.key, 1235Priv.Key, 1235Pub.key, 1236Priv.Key, 1236Pub.key, 1237Priv.Key, 1237Pub.key
+  1234Priv.Key, 1234Pub.key, 1235Priv.Key, 1235Pub.key, 1236Priv.Key, 1236Pub.key, 1237Priv.Key, 1237Pub.key
 - Keys already generated for Client:
-JoaoPriv.key, JoaoPub.key
+  JoaoPriv.key, JoaoPub.key
 - Keys generated to test fake signing:
-pub.key, priv.key
+  pub.key, priv.key
 
 **4) Delete all the generated .class files**
 ```
  rm *.class src/pt/ulisboa/tecnico/meic/sirs/*.class 
 ```
-

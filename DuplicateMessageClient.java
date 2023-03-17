@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
-public class ByzantineClient {
+public class DuplicateMessageClient {
 
     
     private static int nounce=1000;
@@ -247,6 +247,8 @@ public class ByzantineClient {
         if (!responseReceived) {
             System.out.println("No response received ");
         }
+
+        //This if block is exclusive to this class implementation in order to test the duplicate Message that might occur
         if (port.equals("1234")){
             System.out.println("\nSENDING DUPLICATE TO 1234\n");
             socket.send(packet);

@@ -310,16 +310,16 @@ public class Server {
             command=command.substring(8);
             String commit="COMMIT_"+command;
             int requests;
-            if(!consensusValuePrepare.containsKey(tokens[2]+"_"+tokens[3]+"_"+tokens[4])){
+            if(!consensusValuePrepare.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
                 requests=1;
             }else{
-                requests=consensusValuePrepare.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])+1;
+                requests=consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
                 
             }
-            consensusValuePrepare.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],requests);
+            consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
             
-            if(consensusValuePrepare.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])>=byznatineQuorum){
-                consensusValuePrepare.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],0);
+            if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
+                consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
                 System.out.println("Broadcasting COMMIT");
                 broadcast(commit,ports);
             }
@@ -328,18 +328,18 @@ public class Server {
         else if(tokens[0].equals("COMMIT") && tokens[1].equals(String.valueOf(consensus_instance))){
             command=command.substring(7);
             int requests;
-            if(!consensusValue.containsKey(tokens[2]+"_"+tokens[3]+"_"+tokens[4])){
+            if(!consensusValue.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
                 requests=1;
             }else{
-                requests=consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])+1;
+                requests=consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
                 
             }
-            consensusValue.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],requests); 
+            consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests); 
             
             
-            System.out.println("commits received "+consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4]));
-            if(consensusValue.get(tokens[2]+"_"+tokens[3]+"_"+tokens[4])>=byznatineQuorum){
-                consensusValue.put(tokens[2]+"_"+tokens[3]+"_"+tokens[4],0);
+            System.out.println("commits received "+consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5]));
+            if(consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
+                consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
                 System.out.println("Deciding COMMIT");
                 decide(command);
             }

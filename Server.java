@@ -129,12 +129,21 @@ public class Server {
         int clientPort = receivePacket.getPort();
 
             
-            
+        InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-        String str = verifySign(receivedMessage.getBytes());
-        InetAddress clientAddress = receivePacket.getAddress();
         
-         tokens= str.split("_");
+        String str = verifySign(receivedMessage.getBytes());
+        tokens= str.split("_");
+        if(tokens[1].equals("NACK")){
+            String response = String.valueOf(SERVER_PORT)+"_"+str;
+                    
+            byte[] sendData = sign(response);
+            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+            socket.send(sendPacket);
+        }
+        
+        
+        
         
         if(tokens[1].equals("Client")){
             int idRequest=Integer.parseInt(tokens[3]);
@@ -163,7 +172,7 @@ public class Server {
                     
 
                     
-                    //System.out.println("added "+queue.peek());
+                    
 
                     receivedIds.add(tokens[2]+"_"+tokens[3]);
                     String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
@@ -348,7 +357,7 @@ public class Server {
     }
 
     private static void decide(String command) throws Exception{
-        //System.out.println(command);
+        
         
         
         
@@ -406,6 +415,9 @@ public class Server {
         
         System.out.println("Signature verifies: " + verifies+"\n");
 
+        if(!verifies){
+            return tokens[0]+"_NACK";
+        }
         return str;
     }   
     public static void commmandsQueue() throws Exception{

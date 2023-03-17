@@ -136,12 +136,14 @@ public class Server {
         
         String str = verifySign(receivedMessage.getBytes());
         tokens= str.split("_");
+        
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
+            return;
         }
         
         
@@ -338,7 +340,7 @@ public class Server {
                     
                 }
             }
-            if(broadcast==true)
+            if(broadcast)
                 broadcast(commit, ports);
             
             

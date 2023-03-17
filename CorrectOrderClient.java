@@ -17,7 +17,7 @@ public class CorrectOrderClient {
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     
     
-    private static int messageId=1;
+    private static int messageId=2;
     private static String clientName;
     
     private static int nServers;
@@ -32,6 +32,9 @@ public class CorrectOrderClient {
         clientName=args[0];
         nServers=Integer.parseInt(args[1]);
         String[] ports = new String[args.length-2];
+
+        System.out.println("I am a client that sends messages with unordered ids, that are still processed correctly by the servers.");
+
         for(int i=2;i< args.length;i++){
             PublicKey pubKey;
             pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");

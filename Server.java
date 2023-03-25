@@ -179,8 +179,10 @@ public class Server {
                     
 
                     receivedIds.add(tokens[2]+"_"+tokens[3]);
-                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";
-                    
+                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;
+
+                    System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+
                     byte[] sendData = sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                     socket.send(sendPacket);
@@ -195,7 +197,7 @@ public class Server {
             
                         
                 
-            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK";                   
+            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;                   
             //receivedIds.add(tokens[2]+"_"+tokens[3]);
                 
                         
@@ -253,6 +255,9 @@ public class Server {
             }
 
             receivedIds.add(tokens[2]+"_"+tokens[3]);
+
+            System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+            
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);

@@ -27,6 +27,8 @@ public class Client {
     private static int neededResponses=0;
     private static int faults=1;
     private static int quorum;
+    private static Map<String, List<String>> portsAcks = new HashMap<>();
+
     public static void main(String[] args) throws Exception {
         quorum=faults+1;
         clientName=args[0];
@@ -210,26 +212,72 @@ public class Client {
                 response=verifySign(response.getBytes());
                 String[] tokens= response.split("_");
                 //verify freshness
-                
-                if(Integer.parseInt(tokens[1])!=messageNounce){
-                    System.out.println("Trying to corrupt the message");
-                }
-                else{
-                    if(tokens[2].equals("ACK")){
-                        neededResponses++;
-                        if(neededResponses>=quorum){
-                            System.out.println("Command "+message+ " was applied");
-                            neededResponses=0;
+                System.out.println("SERVER MESSAGE: " + response);
+                System.out.println("\n\n\nConsensus instance:" + tokens[3]);
+
+                // tokens[3] = consensus instance
+                if(portsAcks.containsKey(tokens[3])){
+                    System.out.println("HERE");
+                    List<String> acksReceived = portsAcks.get(tokens[3]);
+                    // tokens[0] = server port
+                    if(acksReceived.contains(tokens[0])){
+                        System.out.println("The Server " + tokens[0] + " has already sent an ACK for consensus instance " + tokens[3]);
+                    }
+                    else{
+                        portsAcks.get(tokens[3]).add(tokens[0]);
+
+                        if(Integer.parseInt(tokens[1])!=messageNounce){
+                            System.out.println("Trying to corrupt the message");
                         }
-                        System.out.println("Response Ok");
+                        else{
+                            if(tokens[2].equals("ACK")){
+                                neededResponses++;
+                                if(neededResponses>=quorum){
+                                    System.out.println("Command "+message+ " was applied");
+                                    neededResponses=0;
+                                }
+                                System.out.println("Response Ok");
+                                
+                                
+                            }
+                            
+                        }
+                            
                         
-                        
+                        responseReceived = true;
                     }
                     
-                }
+                }else{
+                    System.out.println("AQUI");
+
+                    portsAcks.put(tokens[3], new ArrayList<>());
+                    portsAcks.get(tokens[3]).add(tokens[0]);
+
                     
-                
-                responseReceived = true;
+                    if(Integer.parseInt(tokens[1])!=messageNounce){
+                        System.out.println("Trying to corrupt the message");
+                    }
+                    else{
+                        if(tokens[2].equals("ACK")){
+                            neededResponses++;
+                            if(neededResponses>=quorum){
+                                System.out.println("Command "+message+ " was applied");
+                                neededResponses=0;
+                            }
+                            System.out.println("Response Ok");
+                            
+                            
+                        }
+                        
+                    }
+                        
+                    
+                    responseReceived = true;
+                    
+                }
+                System.out.println("ACKS received: " + portsAcks);
+
+
             } catch (Exception e) {
                 // If a timeout occurs, retry sending the message
                 System.out.println("Timeout occurred, retrying... to "+port);

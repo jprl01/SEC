@@ -215,6 +215,8 @@ public class Client {
                 System.out.println("SERVER MESSAGE: " + response);
                 System.out.println("\n\n\nConsensus instance:" + tokens[3]);
 
+                boolean noDupliactedPort = false;
+
                 // tokens[3] = consensus instance
                 if(portsAcks.containsKey(tokens[3])){
                     System.out.println("HERE");
@@ -225,26 +227,7 @@ public class Client {
                     }
                     else{
                         portsAcks.get(tokens[3]).add(tokens[0]);
-
-                        if(Integer.parseInt(tokens[1])!=messageNounce){
-                            System.out.println("Trying to corrupt the message");
-                        }
-                        else{
-                            if(tokens[2].equals("ACK")){
-                                neededResponses++;
-                                if(neededResponses>=quorum){
-                                    System.out.println("Command "+message+ " was applied");
-                                    neededResponses=0;
-                                }
-                                System.out.println("Response Ok");
-                                
-                                
-                            }
-                            
-                        }
-                            
-                        
-                        responseReceived = true;
+                        noDupliactedPort = true;
                     }
                     
                 }else{
@@ -252,8 +235,10 @@ public class Client {
 
                     portsAcks.put(tokens[3], new ArrayList<>());
                     portsAcks.get(tokens[3]).add(tokens[0]);
+                    noDupliactedPort = true;                    
+                }
 
-                    
+                if(noDupliactedPort){
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
                     }
@@ -264,16 +249,10 @@ public class Client {
                                 System.out.println("Command "+message+ " was applied");
                                 neededResponses=0;
                             }
-                            System.out.println("Response Ok");
-                            
-                            
+                            System.out.println("Response Ok");                            
                         }
-                        
-                    }
-                        
-                    
+                    }                    
                     responseReceived = true;
-                    
                 }
                 System.out.println("ACKS received: " + portsAcks);
 

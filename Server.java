@@ -33,6 +33,9 @@ public class Server {
     private static List<String> receivedIds = new ArrayList<>();
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     private static int nounce=1000;
+    private static Map<String, List<String>> portsPrepare = new HashMap<>();
+    private static Map<String, List<String>> portsCommit = new HashMap<>();
+
     
     
     
@@ -78,6 +81,7 @@ public class Server {
         
         if(lowestPort==SERVER_PORT){
             leader=true;
+            System.out.println("I am the leader server.");
         } 
 
         
@@ -147,8 +151,9 @@ public class Server {
         }
         
         
-        
-        
+        System.out.println("%%%%%%%%%%%%%%%%");
+        System.out.println(receivedMessage);
+        System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
             int idRequest=Integer.parseInt(tokens[3]);
             if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
@@ -257,7 +262,7 @@ public class Server {
             receivedIds.add(tokens[2]+"_"+tokens[3]);
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
-            
+
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
@@ -279,7 +284,7 @@ public class Server {
             command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
             
             
-            
+            String senderPort = tokens[0];
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
             byte[] sendData = sign(response);
@@ -293,7 +298,7 @@ public class Server {
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
                         System.out.println("analysing command "+command);
-                        analyse_command(command,ports,leaderSent);
+                        analyse_command(command,ports,leaderSent, senderPort);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -310,7 +315,11 @@ public class Server {
 
     }
 
-    private static void analyse_command(String command,String ports[], boolean leaderSent) throws Exception{
+    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort) throws Exception{
+        System.out.println("\n\n####################");
+        System.out.println(command);
+        System.out.println("Sender port: " + senderPort);
+        System.out.println("####################\n\n");
         String[] tokens= command.split("_");
         
         if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance)) && leaderSent){
@@ -329,20 +338,41 @@ public class Server {
             command=command.substring(8);
             String commit="COMMIT_"+command;
             int requests;
+            boolean noDupliactedPort = false;
+
             synchronized(lockPrepare){
-                if(!consensusValuePrepare.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
-                    requests=1;
-                }else{
-                    requests=consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
-                    
+
+                if(portsPrepare.containsKey(tokens[1]))
+                {
+                    List<String> listPortsPrepare = portsPrepare.get(tokens[1]);
+                    if(listPortsPrepare.contains(senderPort)){
+                        System.out.println("The Server " + senderPort + " has already sent a PREPARE message for consensus instance " + tokens[1]);
+                    }
+                    else{
+                        portsPrepare.get(tokens[1]).add(senderPort);
+                        noDupliactedPort = true;
+                    }
                 }
-                consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
-                
-                if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
-                    consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-                    System.out.println("Broadcasting COMMIT");
-                    broadcast=true;
+                else{
+                    portsPrepare.put(tokens[1], new ArrayList<>());
+                    portsPrepare.get(tokens[1]).add(senderPort);
+                    noDupliactedPort = true;
+                }
+
+                if(noDupliactedPort){
+                    if(!consensusValuePrepare.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
+                        requests=1;
+                    }else{
+                        requests=consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
+                        
+                    }
+                    consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
                     
+                    if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
+                        consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
+                        System.out.println("Broadcasting COMMIT");
+                        broadcast=true;  
+                    }
                 }
             }
             if(broadcast)
@@ -354,23 +384,47 @@ public class Server {
             boolean decide=false;
             command=command.substring(7);
             int requests;
+            boolean noDupliactedPort = false;
+
             synchronized(lockCommit){
-                if(!consensusValue.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
-                    requests=1;
-                }else{
-                    requests=consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
-                    
+
+                if(portsCommit.containsKey(tokens[1]))
+                {
+                    List<String> listPortsCommit = portsCommit.get(tokens[1]);
+                    if(listPortsCommit.contains(senderPort)){
+                        System.out.println("The Server " + senderPort + " has already sent a COMMIT message for consensus instance " + tokens[1]);
+                    }
+                    else{
+                        portsCommit.get(tokens[1]).add(senderPort);
+                        noDupliactedPort = true;
+                    }
                 }
-                consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests); 
-                
-                
-                System.out.println("commits received "+consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5]));
-                if(consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
-                    consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-                    System.out.println("Deciding COMMIT");
-                    decide=true;
-                    
+                else{
+                    portsCommit.put(tokens[1], new ArrayList<>());
+                    portsCommit.get(tokens[1]).add(senderPort);
+                    noDupliactedPort = true;
                 }
+
+                if(noDupliactedPort){
+                    if(!consensusValue.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
+                        requests=1;
+                    }else{
+                        requests=consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
+                        
+                    }
+                    consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests); 
+                    
+                    
+                    System.out.println("commits received "+consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5]));
+                    if(consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
+                        consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
+                        System.out.println("Deciding COMMIT");
+                        decide=true;
+                        
+                    }
+                }
+
+
             }
             if(decide)
                 decide(command);

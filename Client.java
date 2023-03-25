@@ -97,28 +97,44 @@ public class Client {
         dsaForSign.initSign(privateKey);
         dsaForSign.update(messageBytes);
         byte[] signature = dsaForSign.sign();
+
+        messageBytes = (message+'\n').getBytes();
         
-        
+        //System.out.println("tamanho "+ messageBytes.length);
         
         String encodedString = Base64.getEncoder().encodeToString(signature);
         
         signature=encodedString.getBytes();
         
+        String sig = new String(signature);
+        //System.out.println("sig "+signature);
+
         byte[] data = new byte[messageBytes.length + signature.length];
-        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);        
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
 
         return data;
+    }
+    
+    private static int indexOf(byte[] array, byte value) {
+        for (int i = 0; i < array.length; i++) {
+            if (array[i] == value) {
+                return i;
+            }
+        }
+        return -1;
     }
 
 
     private static String verifySign(byte[] data) throws Exception{
         PublicKey publicKey;
-        byte[] messageBytes = new byte[data.length-684];
-        byte[] signature = new byte[684];
+        int separatorIndex = indexOf(data, (byte)'\n');
+        
+        byte[] messageBytes = new byte[separatorIndex];
+        byte[] signature = new byte[data.length-separatorIndex-1];
 
-        System.arraycopy(data, 0, messageBytes, 0, data.length-684);
-        System.arraycopy(data, data.length-684, signature, 0, 684);
+        System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+        System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
         System.out.println("Received message: "+str);

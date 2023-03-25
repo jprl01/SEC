@@ -164,7 +164,7 @@ public class Server {
         
         
         System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(receivedMessage);
+        System.out.println(str);
         System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
             int idRequest=Integer.parseInt(tokens[3]);
@@ -489,11 +489,13 @@ public class Server {
 
     private static String verifySign(byte[] data) throws Exception{
         PublicKey publicKey;
-        byte[] messageBytes = new byte[data.length-684];
-        byte[] signature = new byte[684];
+        int separatorIndex = indexOf(data, (byte)'\n');
+        
+        byte[] messageBytes = new byte[separatorIndex];
+        byte[] signature = new byte[data.length-separatorIndex-1];
 
-        System.arraycopy(data, 0, messageBytes, 0, data.length-684);
-        System.arraycopy(data, data.length-684, signature, 0, 684);
+        System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+        System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
         System.out.println("Received message: "+str);
@@ -610,6 +612,15 @@ public class Server {
             
         }
     }
+    private static int indexOf(byte[] array, byte value) {
+        for (int i = 0; i < array.length; i++) {
+            if (array[i] == value) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
 
     private static byte[] sign(String message) throws Exception{
         byte[] messageBytes = message.getBytes();
@@ -618,7 +629,7 @@ public class Server {
         dsaForSign.update(messageBytes);
         byte[] signature = dsaForSign.sign();
         
-        
+        messageBytes = (message+'\n').getBytes();
         
         String encodedString = Base64.getEncoder().encodeToString(signature);
         

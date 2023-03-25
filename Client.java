@@ -7,7 +7,8 @@ import java.nio.file.Paths;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
-import java.util.Scanner; 
+import java.util.Scanner;
+import java.util.regex.PatternSyntaxException;
 import java.nio.charset.StandardCharsets;
 
 public class Client {
@@ -210,7 +211,16 @@ public class Client {
                 
                 
                 response=verifySign(response.getBytes());
-                String[] tokens= response.split("_");
+                // String[] tokens= response.split("_");
+                String[] tokens;
+                try{
+                    tokens= response.split("_");
+                }
+                catch(PatternSyntaxException e){
+                    System.out.println("Message format is incorret. Message will be ignored.");
+                    return;
+                }
+
                 //verify freshness
                 System.out.println("SERVER MESSAGE: " + response);
                 System.out.println("\n\n\nConsensus instance:" + tokens[3]);

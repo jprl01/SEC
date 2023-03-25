@@ -2,6 +2,7 @@ import java.net.*;
 import java.security.*;
 
 import java.util.*;
+import java.util.regex.PatternSyntaxException;
 
 // import javax.lang.model.util.ElementScanner14;
 // import javax.sound.sampled.BooleanControl;
@@ -47,7 +48,7 @@ public class Server {
     private static int consensus_instance=1;
     private static boolean consensus_started=false;
     private static int nServers;
-    private static int faults=1;
+    private static int faults;
     private static int byznatineQuorum;
     private static String[] ports;
     private static int lowestPort;
@@ -56,6 +57,10 @@ public class Server {
     public static void main(String[] args) throws Exception {
         
         nServers=Integer.parseInt(args[0]);
+
+        // nServers >= 3 * faults + 1;
+        faults = (nServers  - 1)/3; 
+
         byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
@@ -139,7 +144,14 @@ public class Server {
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
         
         String str = verifySign(receivedMessage.getBytes());
-        tokens= str.split("_");
+
+        try{
+            tokens= str.split("_");
+        }
+        catch(PatternSyntaxException e){
+            System.out.println("Message format is incorret. Message will be ignored.");
+            return;
+        }
         
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
@@ -265,7 +277,12 @@ public class Server {
 
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-            socket.send(sendPacket);
+            Integer retryNumber = 0;
+            while(retryNumber < 5){
+                socket.send(sendPacket);
+                retryNumber++;
+                System.out.print("Retry number: " + retryNumber);
+            }
             
 
             
@@ -320,7 +337,17 @@ public class Server {
         System.out.println(command);
         System.out.println("Sender port: " + senderPort);
         System.out.println("####################\n\n");
-        String[] tokens= command.split("_");
+
+        // String[] tokens= command.split("_");
+        String[] tokens;
+        try{
+            tokens= command.split("_");
+        }
+        catch(PatternSyntaxException e){
+            System.out.println("Message format is incorret. Message will be ignored.");
+            return;
+        }
+        
         
         if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance)) && leaderSent){
             
@@ -503,7 +530,17 @@ public class Server {
             
             String str=queue.remove();
             
-            String[]tokens= str.split("_");
+            // String[]tokens= str.split("_");
+
+            String[] tokens;
+            try{
+                tokens= str.split("_");
+            }
+            catch(PatternSyntaxException e){
+                System.out.println("Message format is incorret. Message will be ignored.");
+                return;
+            }
+
             String command=str.substring(tokens[0].length()+tokens[1].length()+2);
             
             if(leader){
@@ -602,7 +639,17 @@ public class Server {
 
     private static void parseCommand (String command){
         //2_1_Joao_1_adeus
-        String[] tokens= command.split("_");
+        // String[] tokens= command.split("_");
+
+        String[] tokens;
+        try{
+            tokens= command.split("_");
+        }
+        catch(PatternSyntaxException e){
+            System.out.println("Message format is incorret. Message will be ignored.");
+            return;
+        }
+
         
         if(clientsChain.containsKey(tokens[2])){
             clientsChain.get(tokens[2]).add(tokens[4]);
@@ -656,7 +703,17 @@ public class Server {
                 
                 
                 response=verifySign(response.getBytes());
-                String[] tokens= response.split("_");
+                // String[] tokens= response.split("_");
+
+                String[] tokens;
+                try{
+                    tokens= response.split("_");
+                }
+                catch(PatternSyntaxException e){
+                    System.out.println("Message format is incorret. Message will be ignored.");
+                    return;
+                }
+
                 //verify freshness
                 System.out.println("Received response from Server port: "+tokens[0]);
 

@@ -3,6 +3,7 @@ import java.security.*;
 
 import java.util.*;
 import java.util.regex.PatternSyntaxException;
+import java.io.IOException;
 
 // import javax.lang.model.util.ElementScanner14;
 // import javax.sound.sampled.BooleanControl;
@@ -271,21 +272,15 @@ public class Server {
                 
             }
 
+
             receivedIds.add(tokens[2]+"_"+tokens[3]);
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
-
+            boolean received=false;
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-            Integer retryNumber = 0;
-            while(retryNumber < 5){
-                socket.send(sendPacket);
-                retryNumber++;
-                System.out.print("Retry number: " + retryNumber);
-            }
-            
-
-            
+            socket.send(sendPacket);
+            /*sendConfirmation(sendPacket,response);*/       
             
         }else{
 
@@ -330,6 +325,45 @@ public class Server {
             
         }
 
+    }
+
+    private static void sendConfirmation(DatagramPacket sendPacket,String response) throws Exception{
+        
+        DatagramSocket confSocket = new DatagramSocket();
+            confSocket.setSoTimeout(5000);
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+                    boolean received=false;
+                    while(!received){
+                        try{
+                            
+                            
+                            confSocket.send(sendPacket);
+                            
+            
+                            byte[] confirmationData = new byte[1024];
+                            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);           
+                            System.out.println("Enviar resposta: "+response);
+                            confSocket.receive(confirmationPacket);
+                            
+
+                            String confirmationMessage = new String(confirmationPacket.getData(), 0, confirmationPacket.getLength());
+                            System.out.print("confirmation "+confirmationMessage);
+                            String conf = verifySign(confirmationMessage.getBytes());
+                            received=true;
+                                                                 
+                        }catch(SocketTimeoutException e){
+                            System.out.println("trying again...");
+                        }catch(IOException e){
+                            System.out.println("erro..");
+                        }catch(Exception e){
+                            System.out.println("erro..");
+                        }
+                    }
+                    
+                }
+            });
+            thread.start(); 
     }
 
     private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort) throws Exception{
@@ -743,7 +777,7 @@ public class Server {
                     
                 
                 responseReceived = true;
-            } catch (Exception e) {
+            } catch (SocketTimeoutException e) {
                 // If a timeout occurs, retry sending the message
                 System.out.println("Timeout occurred, retrying...");
                 

@@ -245,7 +245,7 @@ public class Client {
 
                 // tokens[3] = consensus instance
                 if(portsAcks.containsKey(tokens[3])){
-                    System.out.println("HERE");
+                    //vSystem.out.println("HERE");
                     List<String> acksReceived = portsAcks.get(tokens[3]);
                     // tokens[0] = server port
                     if(acksReceived.contains(tokens[0])){
@@ -279,13 +279,20 @@ public class Client {
                         }
                     }                    
                     responseReceived = true;
+                    /*int confPort = receivePacket.getPort();           
+                    InetAddress confAddress = receivePacket.getAddress();
+                    System.out.println("bahhhhhhhhh");
+                    byte[] confirmation=sign(Integer.parseInt(tokens[1])+"_ACK");
+                    DatagramPacket confpacket = new DatagramPacket(confirmation, confirmation.length, confAddress, confPort);
+                    socket.send(confpacket);*/
                 }
                 System.out.println("ACKS received: " + portsAcks);
 
 
-            } catch (Exception e) {
+            } catch (SocketTimeoutException e) {
                 // If a timeout occurs, retry sending the message
-                System.out.println("Timeout occurred, retrying... to "+port);
+                System.out.println("Timeout occurred, retrying... to "+port+" message: "+message);
+                
                 
                 
             }

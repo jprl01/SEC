@@ -257,8 +257,6 @@ public class Client {
                     }
                     
                 }else{
-                    System.out.println("AQUI");
-
                     portsAcks.put(tokens[3], new ArrayList<>());
                     portsAcks.get(tokens[3]).add(tokens[0]);
                     noDupliactedPort = true;                    

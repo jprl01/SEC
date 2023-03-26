@@ -35,6 +35,8 @@ public class Server {
     private static List<String> receivedIds = new ArrayList<>();
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     private static int nounce=1000;
+    private static int expectedId=0;
+
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
 
@@ -169,7 +171,7 @@ public class Server {
         System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
             int idRequest=Integer.parseInt(tokens[3]);
-            if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
+            if(idRequest < expectedId){
                 System.out.println("duplicated message");
                 return;
                 
@@ -194,9 +196,8 @@ public class Server {
                     
 
                     
-                    
+                    expectedId++;
 
-                    receivedIds.add(tokens[2]+"_"+tokens[3]);
                     String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;
 
                     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
@@ -273,7 +274,7 @@ public class Server {
             }
 
 
-            receivedIds.add(tokens[2]+"_"+tokens[3]);
+            expectedId++;
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             boolean received=false;

@@ -27,7 +27,7 @@ public class Server {
     private static boolean leader=false;
     private static int round=1;
     private static Queue<String> queue = new LinkedList<>();
-    private static Map<String, Integer> clientsRequests = new HashMap<>();
+    private static Map<String, Integer> idRequests = new HashMap<>();
     private static Map<String, List<String>> clientsChain = new HashMap<>();
     
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
@@ -48,7 +48,7 @@ public class Server {
     
     
     private static int messageId=0;
-    private static int consensus_instance=1;
+    private static int consensus_instance=0;
     private static boolean consensus_started=false;
     private static int nServers;
     private static int faults;
@@ -171,20 +171,28 @@ public class Server {
         System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
             int idRequest=Integer.parseInt(tokens[3]);
-            if(idRequest < expectedId){
-                System.out.println("duplicated message");
-                return;
+            
+           /* if(idRequests.containsKey(tokens[2])){
+                if(idRequest<idRequests.get(tokens[2])){
+                    System.out.println("Duplicated message");
+                    return;
+                }
                 
-            }   
+            }else if(!idRequests.containsKey(tokens[2]) && idRequest!=0){
+                System.out.println("Duplicated message");
+                    return;
+            }*/
+        
+            
             synchronized(lock){
                 if(consensus_started){  
 
                     //verify if order is correct
                     if(leader){
                         System.out.println("Incrementar requests2");
-                        if(clientsRequests.get(tokens[2])==idRequest){
+                        if(idRequests.get(tokens[2])==idRequest){
                             System.out.println(" comando certo");
-                            clientsRequests.put(tokens[2],idRequest+1);
+                            idRequests.put(tokens[2],idRequest+1);
                         }
                         else{
                             System.out.println(" comando errado");
@@ -195,10 +203,10 @@ public class Server {
                     }
                     
 
-                    
-                    expectedId++;
+                    receivedIds.add(tokens[2]+"_"+tokens[3]);
+                    //expectedId++;
 
-                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;
+                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + idRequest;
 
                     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
 
@@ -209,52 +217,29 @@ public class Server {
                 }
                     
                 consensus_started=true;
+                
             }
             
             
-            String response;
+            //String response;
             
-                        
+            String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3]; 
                 
-            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;                   
+                              
             //receivedIds.add(tokens[2]+"_"+tokens[3]);
                 
                         
-            
-            
-            
+                      
             
             if(leader){
                 
                 
                 command=str.substring(tokens[0].length()+tokens[1].length()+2);
-                
-                if(!clientsRequests.containsKey(tokens[2])){
-                    
-                    if(idRequest==0){
-                        System.out.println(" comando certo");
-                        clientsRequests.put(tokens[2],1);
-                    }                            
-                    else{
-                        System.out.println(" comando errado");
-                        consensus_started=false;
-                        return;
-                    }
-                        
-                }
-                else if(clientsRequests.get(tokens[2])==idRequest){
-                    System.out.println("comando certo");
-                    clientsRequests.put(tokens[2],idRequest+1);
-                }
-                else{
-                    System.out.println(" comando errado");
+                if(!processIdRequest(tokens[2], idRequest)){
                     consensus_started=false;
                     return;
-                }
-                    
-
-
-
+                } 
+                
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
@@ -274,7 +259,7 @@ public class Server {
             }
 
 
-            expectedId++;
+            //expectedId++;
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             boolean received=false;
@@ -284,7 +269,10 @@ public class Server {
             /*sendConfirmation(sendPacket,response);*/       
             
         }else{
-
+            /*if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
+                System.out.println("duplicated message");
+                return;
+            }*/
             if(receivedIds.contains(tokens[0]+"_"+tokens[2])){
                 System.out.println("duplicated message");
                 return;
@@ -326,6 +314,33 @@ public class Server {
             
         }
 
+    }
+    private static boolean processIdRequest(String client, int idRequest){
+        
+        if(!idRequests.containsKey(client)){
+                    
+            if(idRequest==0){
+                System.out.println(" comando certo");
+                idRequests.put(client,1);
+            }                            
+            else{
+                System.out.println(" comando errado");
+                
+                return false;
+            }
+                
+        }
+        else if(idRequests.get(client)==idRequest){
+            System.out.println("comando certo");
+            idRequests.put(client,idRequest+1);
+        }
+        else{
+            System.out.println(" comando errado");
+            
+            return false;
+        }
+
+        return true;
     }
 
     private static void sendConfirmation(DatagramPacket sendPacket,String response) throws Exception{

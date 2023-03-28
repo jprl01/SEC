@@ -726,16 +726,19 @@ public class Server {
 
     private static void sendMessage(String message, String port) throws Exception{
         int messageNounce;
+        int id;
         synchronized (lock) {
             messageNounce=nounce;
+            id=messageId;
             nounce++;
+            messageId++;
         }
         
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
-        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(messageId++)+"_"+message;
+        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
         byte[] messageBytes= sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));

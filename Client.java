@@ -58,11 +58,28 @@ public class Client {
         while(true){
             String message;
             System.out.println("Type something to server");
+            String command= myObj.nextLine();
+            if(!parseCommand(command)){
+                continue;
+            }
+            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+                    try{
+                        
+                        
+                        broadcast(message,ports);
+                        
+                    }catch(Exception e){
+                        System.out.println("erro");
+                        e.printStackTrace();
+                    }
+                    
+                }
+            });
+            thread.start();
             
-            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
             
-            
-            broadcast(message,ports);
             
 
         // Send the packet to the server
@@ -72,6 +89,32 @@ public class Client {
 
 
         
+    }
+
+    private static boolean parseCommand(String command) throws Exception{
+        String[] tokens;
+        try{
+            tokens= command.split(" ");
+        }
+        catch(PatternSyntaxException e){
+            System.out.println("Message format is incorret. Message will be ignored.");
+            return false;
+        }
+        if(tokens[0].equals("transfer")){
+            if(Integer.parseInt(tokens[3])<=0){
+
+                return false;
+            }
+        }else if(tokens[0].equals("createAccount")){
+            
+        }else if(tokens[0].equals("checkBalance")){
+            
+        }else{
+            System.out.println("Invalid command");
+            return false;
+        }
+
+        return true;
     }
 
     private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {

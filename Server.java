@@ -33,20 +33,13 @@ public class Server {
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
     private static List<String> receivedIds = new ArrayList<>();
-    private static Map<String,PublicKey> publicKeys= new HashMap<>();
     private static int nounce=1000;
     private static int expectedId=0;
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
 
-    
-    
-    
-    private static PrivateKey privateKey;
-    
-    
-    
+
     private static int messageId=0;
     private static int consensus_instance=0;
     private static boolean consensus_started=false;
@@ -55,10 +48,11 @@ public class Server {
     private static int byznatineQuorum;
     private static String[] ports;
     private static int lowestPort;
-
+    private static Signer signer= null;
 
     public static void main(String[] args) throws Exception {
-        
+        signer = new Signer();
+
         nServers=Integer.parseInt(args[0]);
 
         // nServers >= 3 * faults + 1;
@@ -71,20 +65,12 @@ public class Server {
         // Load RSA keys from files
 
         for(int i=2;i< args.length;i++){
-            
-            PublicKey pubKey;
-            pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
-            publicKeys.put(args[i],pubKey);
-            
-             
-            
+            signer.loadPublicKeyFromFile(args[i]);
 
             if(args[1].equals(args[i])){
-                privateKey=loadPrivateKeyFromFile(args[1]+"Priv.key");
+                signer.loadPrivateKeyFromFile(args[1]);
             }
             ports[i-2]=args[i];
-            
-            
         }
         
         if(lowestPort==SERVER_PORT){
@@ -146,7 +132,7 @@ public class Server {
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
         
-        String str = verifySign(receivedMessage.getBytes());
+        String str = signer.verifySign(receivedMessage.getBytes());
 
         try{
             tokens= str.split("_");
@@ -159,7 +145,7 @@ public class Server {
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
-            byte[] sendData = sign(response);
+            byte[] sendData = signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
             return;
@@ -210,7 +196,7 @@ public class Server {
 
                     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
 
-                    byte[] sendData = sign(response);
+                    byte[] sendData = signer.sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                     socket.send(sendPacket);
                     return;
@@ -263,7 +249,7 @@ public class Server {
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             boolean received=false;
-            byte[] sendData = sign(response);
+            byte[] sendData = signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
             /*sendConfirmation(sendPacket,response);*/       
@@ -288,7 +274,7 @@ public class Server {
             String senderPort = tokens[0];
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
-            byte[] sendData = sign(response);
+            byte[] sendData = signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
 
@@ -365,7 +351,7 @@ public class Server {
 
                             String confirmationMessage = new String(confirmationPacket.getData(), 0, confirmationPacket.getLength());
                             System.out.print("confirmation "+confirmationMessage);
-                            String conf = verifySign(confirmationMessage.getBytes());
+                            String conf = signer.verifySign(confirmationMessage.getBytes());
                             received=true;
                                                                  
                         }catch(SocketTimeoutException e){
@@ -523,59 +509,6 @@ public class Server {
 
     }
 
-    private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePublic(spec);
-    }
-
-    private static PrivateKey loadPrivateKeyFromFile(String fileName) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePrivate(spec);
-    }
-
-    private static String verifySign(byte[] data) throws Exception{
-        PublicKey publicKey;
-        int separatorIndex = indexOf(data, (byte)'\n');
-        
-        byte[] messageBytes = new byte[separatorIndex];
-        byte[] signature = new byte[data.length-separatorIndex-1];
-
-        System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
-        System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
-
-        String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
-
-        String[] tokens= str.split("_");
-        if(tokens[1].equals("Client"))
-            publicKey=publicKeys.get(tokens[2]);
-        else
-            publicKey=publicKeys.get(tokens[0]);
-
-        Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
-        rsaForVerify.initVerify(publicKey);
-        rsaForVerify.update(messageBytes);
-
-        String sig = new String(signature);
-        byte[] decodedBytes = Base64.getDecoder().decode(sig);
-        
-        
-        boolean verifies = rsaForVerify.verify(decodedBytes);
-        
-        
-        
-        
-        System.out.println("Signature verifies: " + verifies+"\n");
-
-        if(!verifies){
-            return tokens[0]+"_NACK";
-        }
-        return str;
-    }   
     public static void commmandsQueue() throws Exception{
         if(!queue.isEmpty()){
             System.out.println("There are commands to run");
@@ -662,35 +595,6 @@ public class Server {
             
         }
     }
-    private static int indexOf(byte[] array, byte value) {
-        for (int i = 0; i < array.length; i++) {
-            if (array[i] == value) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-
-    private static byte[] sign(String message) throws Exception{
-        byte[] messageBytes = message.getBytes();
-        Signature dsaForSign = Signature.getInstance("SHA1withRSA");
-        dsaForSign.initSign(privateKey);
-        dsaForSign.update(messageBytes);
-        byte[] signature = dsaForSign.sign();
-        
-        messageBytes = (message+'\n').getBytes();
-        
-        String encodedString = Base64.getEncoder().encodeToString(signature);
-        
-        signature=encodedString.getBytes();
-        
-        byte[] data = new byte[messageBytes.length + signature.length];
-        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-        System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
-
-        return data;
-    }
 
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);
@@ -736,7 +640,7 @@ public class Server {
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(messageId++)+"_"+message;
-        byte[] messageBytes= sign(message);
+        byte[] messageBytes= signer.sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
@@ -763,7 +667,7 @@ public class Server {
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
                 
-                response=verifySign(response.getBytes());
+                response=signer.verifySign(response.getBytes());
                 // String[] tokens= response.split("_");
 
                 String[] tokens;

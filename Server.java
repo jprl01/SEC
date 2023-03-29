@@ -180,10 +180,11 @@ public class Server {
                     if(leader){
                         System.out.println("Incrementar requests2");
                         if(!processIdRequest(tokens[2], idRequest)){
-                            System.out.println(" comando certo");
-                        }else{
                             System.out.println(" comando errado");
                             return;
+                        }else{
+                            System.out.println(" comando certo");
+                            
                         }
                         
                             

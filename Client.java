@@ -257,6 +257,7 @@ public class Client {
         while (!responseReceived) {
             // Send the packet to the server
             socket.send(packet);
+            //socket.send(packet);
             
             
             // Create a packet to receive the response from the server

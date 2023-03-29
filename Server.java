@@ -19,6 +19,7 @@ public class Server {
 
     private static final int BLOCK_SIZE=3;
     private static final Object lock = new Object();
+    private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
     private static final Object lockCommit = new Object();
     
@@ -174,25 +175,25 @@ public class Server {
             
                       
             synchronized(lock){
+                if(!processIdRequest(tokens[2], idRequest)){
+                    System.out.println(" comando errado");
+                    return;
+                }else{
+                    System.out.println(" comando certo");
+                    
+                }
+
                 if(consensus_started){  
 
                     //verify if order is correct
                     if(leader){
-                        System.out.println("Incrementar requests2");
-                        if(!processIdRequest(tokens[2], idRequest)){
-                            System.out.println(" comando errado");
-                            return;
-                        }else{
-                            System.out.println(" comando certo");
-                            
-                        }
-                        
+                                               
                             
                         queue.add(str);
                     }
                     
 
-                    receivedIds.add(tokens[2]+"_"+tokens[3]);
+                    //receivedIds.add(tokens[2]+"_"+tokens[3]);
                     //expectedId++;
 
                     String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + idRequest;
@@ -211,25 +212,16 @@ public class Server {
             }
             
             
-            //String response;
             
-            String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3]; 
-                
-                              
-            //receivedIds.add(tokens[2]+"_"+tokens[3]);
-                
-                        
+            
+            String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3];      
                       
             
             if(leader){
                 
                 
                 command=str.substring(tokens[0].length()+tokens[1].length()+2);
-                if(!processIdRequest(tokens[2], idRequest)){
-                    //System.out.println("zimbora "+queue.size());
-                    consensus_started=false;
-                    return;
-                } 
+                
                 queue.add(str);
 
                 System.out.println("queue "+queue.size());
@@ -255,19 +247,12 @@ public class Server {
             /*sendConfirmation(sendPacket,response);*/       
             
         }else{
-            /*if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
-                System.out.println("duplicated message");
-                return;
-            }*/
-            if(receivedIds.contains(tokens[0]+"_"+tokens[2])){
-                System.out.println("duplicated message");
-                return;
-                
+            synchronized(lockServers){
+                if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
+                    System.out.println("duplicated message");
+                    return;
+                }
             }
-            else{
-                receivedIds.add(tokens[0]+"_"+tokens[2]);
-            }
-            //System.out.println("Received from port: "+tokens[0]);
             command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
             
             
@@ -597,38 +582,7 @@ public class Server {
         if(queue.size()==BLOCK_SIZE && leader){
             System.out.println("There are BLOCKS to run");
             sendBlock();
-            /* 
             
-            // String[]tokens= str.split("_");
-
-            String[] tokens;
-            try{
-                tokens= str.split("_");
-            }
-            catch(PatternSyntaxException e){
-                System.out.println("Message format is incorret. Message will be ignored.");
-                return;
-            }
-
-            String command=str.substring(tokens[0].length()+tokens[1].length()+2);
-            
-            if(leader){
-                Thread thread = new Thread(new Runnable()  {
-                    public void run()  {
-                        try{
-                            //System.out.println("consensus "+command);
-                            consensus(command,ports);
-                            //System.out.println("consensus "+command);
-                            
-                        }catch(Exception e){
-                            System.out.println("erro");
-                            e.printStackTrace();
-                        }
-                        
-                    }
-                });
-                thread.start();
-            }*/
             
             
         }
@@ -654,6 +608,13 @@ public class Server {
 
     public static void broadcast(String message, String[] ports) throws Exception{
         int i=0;
+        int id;
+        synchronized (lock) {
+            
+            id=messageId;
+            
+            messageId++;
+        }
         for (String port : ports) {
             if(i==nServers)
                 break;
@@ -664,7 +625,7 @@ public class Server {
                 public void run()  {
                     try{
                         System.out.println("sending to "+arg);
-                        sendMessage(message,arg);
+                        sendMessage(message,arg,id);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -756,14 +717,13 @@ public class Server {
         System.out.println("Map of lists: " + clientsChain);
     }
 
-    private static void sendMessage(String message, String port) throws Exception{
+    private static void sendMessage(String message, String port, int id) throws Exception{
         int messageNounce;
-        int id;
+        //int id;
         synchronized (lock) {
-            messageNounce=nounce;
-            id=messageId;
+            messageNounce=nounce;            
             nounce++;
-            messageId++;
+            
         }
         
         boolean responseReceived=false;
@@ -782,6 +742,7 @@ public class Server {
         while (!responseReceived) {
             // Send the packet to the server
             socket.send(packet);
+            
             
             
             

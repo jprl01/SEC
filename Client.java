@@ -59,9 +59,12 @@ public class Client {
             String message;
             System.out.println("Type something to server");
             String command= myObj.nextLine();
+
+            //ta comentado so para testar com strings
+            /* 
             if(!parseCommand(command)){
                 continue;
-            }
+            }*/
             message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {

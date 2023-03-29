@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
 
 public class Server {
 
-    
+    private static final int BLOCK_SIZE=3;
     private static final Object lock = new Object();
     private static final Object lockPrepare = new Object();
     private static final Object lockCommit = new Object();
@@ -172,32 +172,20 @@ public class Server {
         if(tokens[1].equals("Client")){
             int idRequest=Integer.parseInt(tokens[3]);
             
-           /* if(idRequests.containsKey(tokens[2])){
-                if(idRequest<idRequests.get(tokens[2])){
-                    System.out.println("Duplicated message");
-                    return;
-                }
-                
-            }else if(!idRequests.containsKey(tokens[2]) && idRequest!=0){
-                System.out.println("Duplicated message");
-                    return;
-            }*/
-        
-            
+                      
             synchronized(lock){
                 if(consensus_started){  
 
                     //verify if order is correct
                     if(leader){
                         System.out.println("Incrementar requests2");
-                        if(idRequests.get(tokens[2])==idRequest){
+                        if(!processIdRequest(tokens[2], idRequest)){
                             System.out.println(" comando certo");
-                            idRequests.put(tokens[2],idRequest+1);
-                        }
-                        else{
+                        }else{
                             System.out.println(" comando errado");
                             return;
                         }
+                        
                             
                         queue.add(str);
                     }
@@ -213,6 +201,7 @@ public class Server {
                     byte[] sendData = sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
                     socket.send(sendPacket);
+
                     return;
                 }
                     
@@ -236,25 +225,21 @@ public class Server {
                 
                 command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 if(!processIdRequest(tokens[2], idRequest)){
+                    //System.out.println("zimbora "+queue.size());
                     consensus_started=false;
                     return;
                 } 
+                queue.add(str);
+
+                System.out.println("queue "+queue.size());
+                if(queue.size()==BLOCK_SIZE){
+                    //consensus_started=true;
+                    sendBlock();
+                }
+                else{
+                    consensus_started=false;
+                }
                 
-                Thread thread = new Thread(new Runnable()  {
-                    public void run()  {
-                        try{
-                            
-                            consensus(command,ports);
-                            
-                            
-                        }catch(Exception e){
-                            System.out.println("erro");
-                            e.printStackTrace();
-                        }
-                        
-                    }
-                });
-                thread.start();
                 
             }
 
@@ -341,6 +326,37 @@ public class Server {
         }
 
         return true;
+    }
+
+    private static void sendBlock() throws Exception{
+        
+        Thread thread = new Thread(new Runnable()  {
+            
+            public void run()  {
+                String block;
+                String request=queue.poll();
+                String tokens[]=request.split("_");
+                block=request.substring(tokens[0].length()+tokens[1].length()+2);
+                
+                while(!queue.isEmpty()){
+                    
+                    request=queue.poll();
+                    tokens=request.split("_");
+                    block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
+                }
+                try{
+                    
+                    consensus(block,ports);
+                    
+                    
+                }catch(Exception e){
+                    System.out.println("erro");
+                    e.printStackTrace();
+                }
+                
+            }
+        });
+        thread.start();
     }
 
     private static void sendConfirmation(DatagramPacket sendPacket,String response) throws Exception{
@@ -577,10 +593,10 @@ public class Server {
         return str;
     }   
     public static void commmandsQueue() throws Exception{
-        if(!queue.isEmpty()){
-            System.out.println("There are commands to run");
-            
-            String str=queue.remove();
+        if(queue.size()==BLOCK_SIZE && leader){
+            System.out.println("There are BLOCKS to run");
+            sendBlock();
+            /* 
             
             // String[]tokens= str.split("_");
 
@@ -611,7 +627,7 @@ public class Server {
                     }
                 });
                 thread.start();
-            }
+            }*/
             
             
         }
@@ -701,8 +717,9 @@ public class Server {
     private static void parseCommand (String command){
         //2_1_Joao_1_adeus
         // String[] tokens= command.split("_");
-
+        System.out.println("deciding command "+command);
         String[] tokens;
+        
         try{
             tokens= command.split("_");
         }
@@ -710,17 +727,31 @@ public class Server {
             System.out.println("Message format is incorret. Message will be ignored.");
             return;
         }
+        command=command.substring(tokens[0].length()+tokens[1].length() +2);
 
-        
-        if(clientsChain.containsKey(tokens[2])){
-            clientsChain.get(tokens[2]).add(tokens[4]);
-            
-        }else{
-            
-            clientsChain.put(tokens[2], new ArrayList<>());
-            clientsChain.get(tokens[2]).add(tokens[4]);
-            
+        String transactions[]=command.split(" ");
+
+        for(int i=0;i<BLOCK_SIZE;i++){
+            try{
+                tokens= transactions[i].split("_");
+            }
+            catch(PatternSyntaxException e){
+                System.out.println("Message format is incorret. Message will be ignored.");
+                return;
+            }
+
+            if(clientsChain.containsKey(tokens[0])){
+                clientsChain.get(tokens[0]).add(tokens[2]);
+                
+            }else{
+                
+                clientsChain.put(tokens[0], new ArrayList<>());
+                clientsChain.get(tokens[0]).add(tokens[2]);
+                
+            }
         }
+        
+       
         System.out.println("Map of lists: " + clientsChain);
     }
 

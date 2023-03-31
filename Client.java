@@ -31,9 +31,11 @@ public class Client {
     private static Map<String, List<String>> portsAcks = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
+        nServers=Integer.parseInt(args[1]);
+        faults = (nServers  - 1)/3; 
         quorum=faults+1;
         clientName=args[0];
-        nServers=Integer.parseInt(args[1]);
+        
         String[] ports = new String[args.length-2];
         for(int i=2;i< args.length;i++){
             PublicKey pubKey;
@@ -53,18 +55,17 @@ public class Client {
         
 
         // Create a DatagramSocket
-        DatagramSocket socket = new DatagramSocket();
+        //DatagramSocket socket = new DatagramSocket();
         
         while(true){
             String message;
             System.out.println("Type something to server");
             String command= myObj.nextLine();
 
-            //ta comentado so para testar com strings
-            /* 
-            if(!parseCommand(command)){
-                continue;
-            }*/
+            
+            //if(!parseCommand(command)){
+             //   continue;
+            //}
             message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
@@ -244,6 +245,7 @@ public class Client {
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
+        System.out.println("server port nounce: "+messageNounce+" port: "+socket.getLocalPort());
         int timeout=5000;
         message= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= sign(message);
@@ -291,27 +293,32 @@ public class Client {
                 boolean noDupliactedPort = false;
 
                 // tokens[3] = consensus instance
-                if(portsAcks.containsKey(tokens[3])){
-                    //vSystem.out.println("HERE");
-                    List<String> acksReceived = portsAcks.get(tokens[3]);
-                    // tokens[0] = server port
-                    if(acksReceived.contains(tokens[0])){
-                        System.out.println("The Server " + tokens[0] + " has already sent an ACK for consensus instance " + tokens[3]);
-                    }
-                    else{
+                synchronized(lock){
+                    if(portsAcks.containsKey(tokens[3])){
+                        //vSystem.out.println("HERE");
+                        List<String> acksReceived = portsAcks.get(tokens[3]);
+                        // tokens[0] = server port
+                        if(acksReceived.contains(tokens[0])){
+                            System.out.println("The Server " + tokens[0] + " has already sent an ACK for request " + tokens[3]);
+                        }
+                        else{
+                            portsAcks.get(tokens[3]).add(tokens[0]);
+                            noDupliactedPort = true;
+                        }
+                        
+                    }else{
+                        portsAcks.put(tokens[3], new ArrayList<>());
                         portsAcks.get(tokens[3]).add(tokens[0]);
-                        noDupliactedPort = true;
+                        noDupliactedPort = true;                    
                     }
-                    
-                }else{
-                    portsAcks.put(tokens[3], new ArrayList<>());
-                    portsAcks.get(tokens[3]).add(tokens[0]);
-                    noDupliactedPort = true;                    
                 }
+                
 
                 if(noDupliactedPort){
+                    //System.out.println("nounce: "+tokens[1]+" expected: "+messageNounce+" port: "+socket.getLocalPort());
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
+                        return;
                     }
                     else{
                         if(tokens[2].equals("ACK")){

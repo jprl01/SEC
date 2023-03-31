@@ -30,13 +30,13 @@ public class Server {
     private static Queue<String> queue = new LinkedList<>();
     private static Map<String, Integer> idRequests = new HashMap<>();
     private static Map<String, List<String>> clientsChain = new HashMap<>();
+    private static Map<String,String> clientsSource = new HashMap<>();
     
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
-    private static List<String> receivedIds = new ArrayList<>();
+    
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
-    private static int nounce=1000;
-    private static int expectedId=0;
+    private static int nounce=1000;  
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
@@ -63,8 +63,7 @@ public class Server {
         nServers=Integer.parseInt(args[0]);
 
         // nServers >= 3 * faults + 1;
-        faults = (nServers  - 1)/3; 
-
+        faults = (nServers  - 1)/3;
         byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
@@ -148,7 +147,7 @@ public class Server {
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
         
         String str = verifySign(receivedMessage.getBytes());
-
+        //System.out.println("olaaa "+str);
         try{
             tokens= str.split("_");
         }
@@ -171,8 +170,10 @@ public class Server {
         System.out.println(str);
         System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
+            //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);
-            
+            clientsSource.put(tokens[2]+idRequest,clientAddress.getHostAddress()+"_"+clientPort+"_"+tokens[0]);
+            System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
                       
             synchronized(lock){
                 if(!processIdRequest(tokens[2], idRequest)){
@@ -196,25 +197,27 @@ public class Server {
                     //receivedIds.add(tokens[2]+"_"+tokens[3]);
                     //expectedId++;
 
-                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + idRequest;
+                    /*String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + idRequest;
 
                     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
 
                     byte[] sendData = sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                    socket.send(sendPacket);
+                    socket.send(sendPacket);*/
 
                     return;
                 }
-                    
-                consensus_started=true;
+                if(leader){
+                    consensus_started=true;
+                }
+                
                 
             }
             
             
             
             
-            String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3];      
+            //String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3];      
                       
             
             if(leader){
@@ -238,13 +241,13 @@ public class Server {
 
 
             //expectedId++;
-
+            /*
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             boolean received=false;
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
-            /*sendConfirmation(sendPacket,response);*/       
+            sendConfirmation(sendPacket,response);*/       
             
         }else{
             synchronized(lockServers){
@@ -270,7 +273,7 @@ public class Server {
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
                         System.out.println("analysing command "+command);
-                        analyse_command(command,ports,leaderSent, senderPort);
+                        analyse_command(command,ports,leaderSent, senderPort,socket);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -384,7 +387,7 @@ public class Server {
             thread.start(); 
     }
 
-    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort) throws Exception{
+    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,DatagramSocket socket) throws Exception{
         System.out.println("\n\n####################");
         System.out.println(command);
         System.out.println("Sender port: " + senderPort);
@@ -506,18 +509,20 @@ public class Server {
 
             }
             if(decide)
-                decide(command);
+                decide(command,socket);
             
             
+        }else{
+            System.out.println("Format not expected consensus"+consensus_instance);
         }
     }
 
-    private static void decide(String command) throws Exception{
+    private static void decide(String command,DatagramSocket socket) throws Exception{
         
         
         
         
-        parseCommand(command);
+        parseCommand(command,socket);
         
         consensus_instance++;
                 
@@ -616,13 +621,21 @@ public class Server {
             messageId++;
         }
         for (String port : ports) {
-            if(i==nServers)
+            System.out.println("port "+i);
+            if(i==nServers){
                 break;
+            }
+            i++;
+            /*if(Integer.parseInt(port)==SERVER_PORT){
+                continue;
+            }*/
+                
             
 
             final String arg = port;
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
+
                     try{
                         System.out.println("sending to "+arg);
                         sendMessage(message,arg,id);
@@ -635,7 +648,7 @@ public class Server {
                 }
             });
             thread.start();
-            i++;
+            
             
             
         }
@@ -676,9 +689,9 @@ public class Server {
         
     }
 
-    private static void parseCommand (String command){
+    private static void parseCommand (String command,DatagramSocket socket) throws Exception{
         //2_1_Joao_1_adeus
-        // String[] tokens= command.split("_");
+        
         System.out.println("deciding command "+command);
         String[] tokens;
         
@@ -695,25 +708,41 @@ public class Server {
 
         for(int i=0;i<BLOCK_SIZE;i++){
             try{
+                
                 tokens= transactions[i].split("_");
             }
             catch(PatternSyntaxException e){
                 System.out.println("Message format is incorret. Message will be ignored.");
-                return;
+                continue;
             }
 
-            if(clientsChain.containsKey(tokens[0])){
-                clientsChain.get(tokens[0]).add(tokens[2]);
+            String client=tokens[0];
+            String exec=tokens[2];
+            String idRequest=tokens[1];
+
+            if(clientsChain.containsKey(client)){
+                clientsChain.get(client).add(exec);
                 
             }else{
                 
-                clientsChain.put(tokens[0], new ArrayList<>());
-                clientsChain.get(tokens[0]).add(tokens[2]);
+                clientsChain.put(client, new ArrayList<>());
+                clientsChain.get(client).add(exec);
                 
             }
+            
+            String clientSource[]=clientsSource.get(client+idRequest).split("_");
+            String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest;
+
+            System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+            
+            byte[] sendData = sign(response);
+            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+            socket.send(sendPacket);
         }
         
-       
+        
+        
+        
         System.out.println("Map of lists: " + clientsChain);
     }
 

@@ -5,15 +5,7 @@ import java.util.*;
 import java.util.regex.PatternSyntaxException;
 import java.io.IOException;
 
-// import javax.lang.model.util.ElementScanner14;
-// import javax.sound.sampled.BooleanControl;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-
-import java.nio.charset.StandardCharsets;
 
 public class Server {
 
@@ -35,16 +27,12 @@ public class Server {
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
     
-    private static Map<String,PublicKey> publicKeys= new HashMap<>();
+    
     private static int nounce=1000;  
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
 
-    
-    
-    
-    private static PrivateKey privateKey;
     
     
     
@@ -56,10 +44,11 @@ public class Server {
     private static int byznatineQuorum;
     private static String[] ports;
     private static int lowestPort;
+    //private static Signer signer= null;
 
 
     public static void main(String[] args) throws Exception {
-        
+        //signer = new Signer();
         nServers=Integer.parseInt(args[0]);
 
         // nServers >= 3 * faults + 1;
@@ -71,16 +60,12 @@ public class Server {
         // Load RSA keys from files
 
         for(int i=2;i< args.length;i++){
-            
-            PublicKey pubKey;
-            pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
-            publicKeys.put(args[i],pubKey);
-            
+            Signer.loadPublicKeyFromFile(args[i]);           
              
             
 
             if(args[1].equals(args[i])){
-                privateKey=loadPrivateKeyFromFile(args[1]+"Priv.key");
+                Signer.loadPrivateKeyFromFile(args[1]);
             }
             ports[i-2]=args[i];
             
@@ -146,7 +131,7 @@ public class Server {
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
         
-        String str = verifySign(receivedMessage.getBytes());
+        String str = Signer.verifySign(receivedMessage.getBytes());
         //System.out.println("olaaa "+str);
         try{
             tokens= str.split("_");
@@ -159,7 +144,7 @@ public class Server {
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
-            byte[] sendData = sign(response);
+            byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
             return;
@@ -262,7 +247,7 @@ public class Server {
             String senderPort = tokens[0];
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
-            byte[] sendData = sign(response);
+            byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
 
@@ -370,7 +355,7 @@ public class Server {
 
                             String confirmationMessage = new String(confirmationPacket.getData(), 0, confirmationPacket.getLength());
                             System.out.print("confirmation "+confirmationMessage);
-                            String conf = verifySign(confirmationMessage.getBytes());
+                            String conf = Signer.verifySign(confirmationMessage.getBytes());
                             received=true;
                                                                  
                         }catch(SocketTimeoutException e){
@@ -530,21 +515,8 @@ public class Server {
 
     }
 
-    private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePublic(spec);
-    }
 
-    private static PrivateKey loadPrivateKeyFromFile(String fileName) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePrivate(spec);
-    }
-
-    private static String verifySign(byte[] data) throws Exception{
+    /*private static String verifySign(byte[] data) throws Exception{
         PublicKey publicKey;
         int separatorIndex = indexOf(data, (byte)'\n');
         
@@ -582,7 +554,7 @@ public class Server {
             return tokens[0]+"_NACK";
         }
         return str;
-    }   
+    } */  
     public static void commmandsQueue() throws Exception{
         if(queue.size()==BLOCK_SIZE && leader){
             System.out.println("There are BLOCKS to run");
@@ -653,17 +625,10 @@ public class Server {
             
         }
     }
-    private static int indexOf(byte[] array, byte value) {
-        for (int i = 0; i < array.length; i++) {
-            if (array[i] == value) {
-                return i;
-            }
-        }
-        return -1;
-    }
+   
 
 
-    private static byte[] sign(String message) throws Exception{
+    /*private static byte[] sign(String message) throws Exception{
         byte[] messageBytes = message.getBytes();
         Signature dsaForSign = Signature.getInstance("SHA1withRSA");
         dsaForSign.initSign(privateKey);
@@ -681,7 +646,7 @@ public class Server {
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
 
         return data;
-    }
+    }*/
 
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);
@@ -735,7 +700,7 @@ public class Server {
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             
-            byte[] sendData = sign(response);
+            byte[] sendData = Signer.sign(response);
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
             socket.send(sendPacket);
         }
@@ -760,7 +725,7 @@ public class Server {
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
-        byte[] messageBytes= sign(message);
+        byte[] messageBytes= Signer.sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
@@ -788,7 +753,7 @@ public class Server {
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
                 
-                response=verifySign(response.getBytes());
+                response=Signer.verifySign(response.getBytes());
                 // String[] tokens= response.split("_");
 
                 String[] tokens;

@@ -516,45 +516,6 @@ public class Server {
     }
 
 
-    /*private static String verifySign(byte[] data) throws Exception{
-        PublicKey publicKey;
-        int separatorIndex = indexOf(data, (byte)'\n');
-        
-        byte[] messageBytes = new byte[separatorIndex];
-        byte[] signature = new byte[data.length-separatorIndex-1];
-
-        System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
-        System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
-
-        String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
-
-        String[] tokens= str.split("_");
-        if(tokens[1].equals("Client"))
-            publicKey=publicKeys.get(tokens[2]);
-        else
-            publicKey=publicKeys.get(tokens[0]);
-
-        Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
-        rsaForVerify.initVerify(publicKey);
-        rsaForVerify.update(messageBytes);
-
-        String sig = new String(signature);
-        byte[] decodedBytes = Base64.getDecoder().decode(sig);
-        
-        
-        boolean verifies = rsaForVerify.verify(decodedBytes);
-        
-        
-        
-        
-        System.out.println("Signature verifies: " + verifies+"\n");
-
-        if(!verifies){
-            return tokens[0]+"_NACK";
-        }
-        return str;
-    } */  
     public static void commmandsQueue() throws Exception{
         if(queue.size()==BLOCK_SIZE && leader){
             System.out.println("There are BLOCKS to run");
@@ -626,27 +587,6 @@ public class Server {
         }
     }
    
-
-
-    /*private static byte[] sign(String message) throws Exception{
-        byte[] messageBytes = message.getBytes();
-        Signature dsaForSign = Signature.getInstance("SHA1withRSA");
-        dsaForSign.initSign(privateKey);
-        dsaForSign.update(messageBytes);
-        byte[] signature = dsaForSign.sign();
-        
-        messageBytes = (message+'\n').getBytes();
-        
-        String encodedString = Base64.getEncoder().encodeToString(signature);
-        
-        signature=encodedString.getBytes();
-        
-        byte[] data = new byte[messageBytes.length + signature.length];
-        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-        System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
-
-        return data;
-    }*/
 
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);

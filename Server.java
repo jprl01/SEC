@@ -5,20 +5,13 @@ import java.util.*;
 import java.util.regex.PatternSyntaxException;
 import java.io.IOException;
 
-// import javax.lang.model.util.ElementScanner14;
-// import javax.sound.sampled.BooleanControl;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-
-import java.nio.charset.StandardCharsets;
 
 public class Server {
 
-    
+    private static final int BLOCK_SIZE=3;
     private static final Object lock = new Object();
+    private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
     private static final Object lockCommit = new Object();
     
@@ -27,58 +20,57 @@ public class Server {
     private static boolean leader=false;
     private static int round=1;
     private static Queue<String> queue = new LinkedList<>();
-    private static Map<String, Integer> clientsRequests = new HashMap<>();
+    private static Map<String, Integer> idRequests = new HashMap<>();
     private static Map<String, List<String>> clientsChain = new HashMap<>();
+    private static Map<String,String> clientsSource = new HashMap<>();
     
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
-    private static List<String> receivedIds = new ArrayList<>();
-    private static Map<String,PublicKey> publicKeys= new HashMap<>();
-    private static int nounce=1000;
+    
+    
+
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
 
     
     
     
-    private static PrivateKey privateKey;
-    
-    
-    
     private static int messageId=0;
-    private static int consensus_instance=1;
+    private static int consensus_instance=0;
     private static boolean consensus_started=false;
     private static int nServers;
     private static int faults;
     private static int byznatineQuorum;
     private static String[] ports;
     private static int lowestPort;
+    //private static Signer signer= null;
+    //private static Comunication comunication=null;
 
 
     public static void main(String[] args) throws Exception {
+        //signer = new Signer();
+        //comunication = new Comunication();
         
         nServers=Integer.parseInt(args[0]);
 
         // nServers >= 3 * faults + 1;
-        faults = (nServers  - 1)/3; 
-
+        faults = (nServers  - 1)/3;
         byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
         // Load RSA keys from files
 
+        Comunication.setServerPort(SERVER_PORT);
+        Comunication.setNServers(nServers);
+
         for(int i=2;i< args.length;i++){
-            
-            PublicKey pubKey;
-            pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
-            publicKeys.put(args[i],pubKey);
-            
+            Signer.loadPublicKeyFromFile(args[i]);           
              
             
 
             if(args[1].equals(args[i])){
-                privateKey=loadPrivateKeyFromFile(args[1]+"Priv.key");
+                Signer.loadPrivateKeyFromFile(args[1]);
             }
             ports[i-2]=args[i];
             
@@ -144,8 +136,8 @@ public class Server {
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
         
-        String str = verifySign(receivedMessage.getBytes());
-
+        String str = Signer.verifySign(receivedMessage.getBytes());
+        //System.out.println("olaaa "+str);
         try{
             tokens= str.split("_");
         }
@@ -157,7 +149,7 @@ public class Server {
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
-            byte[] sendData = sign(response);
+            byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
             return;
@@ -168,138 +160,99 @@ public class Server {
         System.out.println(str);
         System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
+            //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);
-            if(receivedIds.contains(tokens[2]+"_"+tokens[3])){
-                System.out.println("duplicated message");
-                return;
-                
-            }   
+            clientsSource.put(tokens[2]+idRequest,clientAddress.getHostAddress()+"_"+clientPort+"_"+tokens[0]);
+            System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
+                      
             synchronized(lock){
+                if(!processIdRequest(tokens[2], idRequest)){
+                    System.out.println(" comando errado");
+                    return;
+                }else{
+                    System.out.println(" comando certo");
+                    
+                }
+
                 if(consensus_started){  
 
                     //verify if order is correct
                     if(leader){
-                        System.out.println("Incrementar requests2");
-                        if(clientsRequests.get(tokens[2])==idRequest){
-                            System.out.println(" comando certo");
-                            clientsRequests.put(tokens[2],idRequest+1);
-                        }
-                        else{
-                            System.out.println(" comando errado");
-                            return;
-                        }
+                                               
                             
                         queue.add(str);
                     }
                     
 
-                    
-                    
+                    //receivedIds.add(tokens[2]+"_"+tokens[3]);
+                    //expectedId++;
 
-                    receivedIds.add(tokens[2]+"_"+tokens[3]);
-                    String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;
+                    /*String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + idRequest;
 
                     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
 
                     byte[] sendData = sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                    socket.send(sendPacket);
+                    socket.send(sendPacket);*/
+
                     return;
                 }
-                    
-                consensus_started=true;
+                if(leader){
+                    consensus_started=true;
+                }
+                
+                
             }
             
             
-            String response;
-            
-                        
-                
-            response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + consensus_instance;                   
-            //receivedIds.add(tokens[2]+"_"+tokens[3]);
-                
-                        
             
             
-            
+            //String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3];      
+                      
             
             if(leader){
                 
                 
                 command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
-                if(!clientsRequests.containsKey(tokens[2])){
-                    
-                    if(idRequest==0){
-                        System.out.println(" comando certo");
-                        clientsRequests.put(tokens[2],1);
-                    }                            
-                    else{
-                        System.out.println(" comando errado");
-                        consensus_started=false;
-                        return;
-                    }
-                        
-                }
-                else if(clientsRequests.get(tokens[2])==idRequest){
-                    System.out.println("comando certo");
-                    clientsRequests.put(tokens[2],idRequest+1);
+                queue.add(str);
+
+                System.out.println("queue "+queue.size());
+                if(queue.size()==BLOCK_SIZE){
+                    //consensus_started=true;
+                    sendBlock();
                 }
                 else{
-                    System.out.println(" comando errado");
                     consensus_started=false;
-                    return;
                 }
-                    
-
-
-
-                Thread thread = new Thread(new Runnable()  {
-                    public void run()  {
-                        try{
-                            
-                            consensus(command,ports);
-                            
-                            
-                        }catch(Exception e){
-                            System.out.println("erro");
-                            e.printStackTrace();
-                        }
-                        
-                    }
-                });
-                thread.start();
+                
                 
             }
 
 
-            receivedIds.add(tokens[2]+"_"+tokens[3]);
-
+            //expectedId++;
+            /*
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             boolean received=false;
             byte[] sendData = sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
-            /*sendConfirmation(sendPacket,response);*/       
+            sendConfirmation(sendPacket,response);*/       
             
         }else{
-
-            if(receivedIds.contains(tokens[0]+"_"+tokens[2])){
-                System.out.println("duplicated message");
-                return;
-                
+            synchronized(lockServers){
+                if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
+                    System.out.println("duplicated message");
+                    return;
+                }
             }
-            else{
-                receivedIds.add(tokens[0]+"_"+tokens[2]);
-            }
-            //System.out.println("Received from port: "+tokens[0]);
             command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
             
             
             String senderPort = tokens[0];
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
-            byte[] sendData = sign(response);
+            byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             socket.send(sendPacket);
 
@@ -310,7 +263,7 @@ public class Server {
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
                         System.out.println("analysing command "+command);
-                        analyse_command(command,ports,leaderSent, senderPort);
+                        analyse_command(command,ports,leaderSent, senderPort,socket);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -325,6 +278,64 @@ public class Server {
             
         }
 
+    }
+    private static boolean processIdRequest(String client, int idRequest){
+        
+        if(!idRequests.containsKey(client)){
+                    
+            if(idRequest==0){
+                System.out.println(" comando certo");
+                idRequests.put(client,1);
+            }                            
+            else{
+                System.out.println(" comando errado");
+                
+                return false;
+            }
+                
+        }
+        else if(idRequests.get(client)==idRequest){
+            System.out.println("comando certo");
+            idRequests.put(client,idRequest+1);
+        }
+        else{
+            System.out.println(" comando errado");
+            
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void sendBlock() throws Exception{
+        
+        Thread thread = new Thread(new Runnable()  {
+            
+            public void run()  {
+                String block;
+                String request=queue.poll();
+                String tokens[]=request.split("_");
+                block=request.substring(tokens[0].length()+tokens[1].length()+2);
+                
+                while(!queue.isEmpty()){
+                    
+                    request=queue.poll();
+                    tokens=request.split("_");
+                    block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
+                }
+                try{
+                    
+                    consensus(block,ports);
+                    
+                    
+                }catch(Exception e){
+                    System.out.println("erro");
+                    e.printStackTrace();
+                }
+                
+            }
+        });
+        thread.start();
     }
 
     private static void sendConfirmation(DatagramPacket sendPacket,String response) throws Exception{
@@ -349,7 +360,7 @@ public class Server {
 
                             String confirmationMessage = new String(confirmationPacket.getData(), 0, confirmationPacket.getLength());
                             System.out.print("confirmation "+confirmationMessage);
-                            String conf = verifySign(confirmationMessage.getBytes());
+                            String conf = Signer.verifySign(confirmationMessage.getBytes());
                             received=true;
                                                                  
                         }catch(SocketTimeoutException e){
@@ -366,7 +377,7 @@ public class Server {
             thread.start(); 
     }
 
-    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort) throws Exception{
+    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,DatagramSocket socket) throws Exception{
         System.out.println("\n\n####################");
         System.out.println(command);
         System.out.println("Sender port: " + senderPort);
@@ -390,7 +401,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            broadcast(prepare,ports);
+            Comunication.broadcast(prepare,ports);
             
             
         }
@@ -437,7 +448,7 @@ public class Server {
                 }
             }
             if(broadcast)
-                broadcast(commit, ports);
+                Comunication.broadcast(commit, ports);
             
             
         }
@@ -488,18 +499,20 @@ public class Server {
 
             }
             if(decide)
-                decide(command);
+                decide(command,socket);
             
             
+        }else{
+            System.out.println("Format not expected consensus"+consensus_instance);
         }
     }
 
-    private static void decide(String command) throws Exception{
+    private static void decide(String command,DatagramSocket socket) throws Exception{
         
         
         
         
-        parseCommand(command);
+        parseCommand(command,socket);
         
         consensus_instance++;
                 
@@ -507,95 +520,12 @@ public class Server {
 
     }
 
-    private static PublicKey loadPublicKeyFromFile(String fileName) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePublic(spec);
-    }
 
-    private static PrivateKey loadPrivateKeyFromFile(String fileName) throws Exception {
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        return keyFactory.generatePrivate(spec);
-    }
-
-    private static String verifySign(byte[] data) throws Exception{
-        PublicKey publicKey;
-        int separatorIndex = indexOf(data, (byte)'\n');
-        
-        byte[] messageBytes = new byte[separatorIndex];
-        byte[] signature = new byte[data.length-separatorIndex-1];
-
-        System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
-        System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
-
-        String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
-
-        String[] tokens= str.split("_");
-        if(tokens[1].equals("Client"))
-            publicKey=publicKeys.get(tokens[2]);
-        else
-            publicKey=publicKeys.get(tokens[0]);
-
-        Signature rsaForVerify = Signature.getInstance("SHA1withRSA");
-        rsaForVerify.initVerify(publicKey);
-        rsaForVerify.update(messageBytes);
-
-        String sig = new String(signature);
-        byte[] decodedBytes = Base64.getDecoder().decode(sig);
-        
-        
-        boolean verifies = rsaForVerify.verify(decodedBytes);
-        
-        
-        
-        
-        System.out.println("Signature verifies: " + verifies+"\n");
-
-        if(!verifies){
-            return tokens[0]+"_NACK";
-        }
-        return str;
-    }   
     public static void commmandsQueue() throws Exception{
-        if(!queue.isEmpty()){
-            System.out.println("There are commands to run");
+        if(queue.size()==BLOCK_SIZE && leader){
+            System.out.println("There are BLOCKS to run");
+            sendBlock();
             
-            String str=queue.remove();
-            
-            // String[]tokens= str.split("_");
-
-            String[] tokens;
-            try{
-                tokens= str.split("_");
-            }
-            catch(PatternSyntaxException e){
-                System.out.println("Message format is incorret. Message will be ignored.");
-                return;
-            }
-
-            String command=str.substring(tokens[0].length()+tokens[1].length()+2);
-            
-            if(leader){
-                Thread thread = new Thread(new Runnable()  {
-                    public void run()  {
-                        try{
-                            //System.out.println("consensus "+command);
-                            consensus(command,ports);
-                            //System.out.println("consensus "+command);
-                            
-                        }catch(Exception e){
-                            System.out.println("erro");
-                            e.printStackTrace();
-                        }
-                        
-                    }
-                });
-                thread.start();
-            }
             
             
         }
@@ -612,69 +542,15 @@ public class Server {
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
 
-            broadcast(start, ports);
+            Comunication.broadcast(start, ports);
             
             
         }
         
     }
 
-    public static void broadcast(String message, String[] ports) throws Exception{
-        int i=0;
-        for (String port : ports) {
-            if(i==nServers)
-                break;
-            
-
-            final String arg = port;
-            Thread thread = new Thread(new Runnable()  {
-                public void run()  {
-                    try{
-                        System.out.println("sending to "+arg);
-                        sendMessage(message,arg);
-                        
-                    }catch(Exception e){
-                        System.out.println("erro");
-                        e.printStackTrace();
-                    }
-                    
-                }
-            });
-            thread.start();
-            i++;
-            
-            
-        }
-    }
-    private static int indexOf(byte[] array, byte value) {
-        for (int i = 0; i < array.length; i++) {
-            if (array[i] == value) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-
-    private static byte[] sign(String message) throws Exception{
-        byte[] messageBytes = message.getBytes();
-        Signature dsaForSign = Signature.getInstance("SHA1withRSA");
-        dsaForSign.initSign(privateKey);
-        dsaForSign.update(messageBytes);
-        byte[] signature = dsaForSign.sign();
-        
-        messageBytes = (message+'\n').getBytes();
-        
-        String encodedString = Base64.getEncoder().encodeToString(signature);
-        
-        signature=encodedString.getBytes();
-        
-        byte[] data = new byte[messageBytes.length + signature.length];
-        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-        System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
-
-        return data;
-    }
+    
+   
 
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);
@@ -682,11 +558,12 @@ public class Server {
         
     }
 
-    private static void parseCommand (String command){
+    private static void parseCommand (String command,DatagramSocket socket) throws Exception{
         //2_1_Joao_1_adeus
-        // String[] tokens= command.split("_");
-
+        
+        System.out.println("deciding command "+command);
         String[] tokens;
+        
         try{
             tokens= command.split("_");
         }
@@ -694,105 +571,51 @@ public class Server {
             System.out.println("Message format is incorret. Message will be ignored.");
             return;
         }
+        command=command.substring(tokens[0].length()+tokens[1].length() +2);
 
-        
-        if(clientsChain.containsKey(tokens[2])){
-            clientsChain.get(tokens[2]).add(tokens[4]);
+        String transactions[]=command.split(" ");
+
+        for(int i=0;i<BLOCK_SIZE;i++){
+            try{
+                
+                tokens= transactions[i].split("_");
+            }
+            catch(PatternSyntaxException e){
+                System.out.println("Message format is incorret. Message will be ignored.");
+                continue;
+            }
+
+            String client=tokens[0];
+            String exec=tokens[2];
+            String idRequest=tokens[1];
+
+            if(clientsChain.containsKey(client)){
+                clientsChain.get(client).add(exec);
+                
+            }else{
+                
+                clientsChain.put(client, new ArrayList<>());
+                clientsChain.get(client).add(exec);
+                
+            }
             
-        }else{
+            String clientSource[]=clientsSource.get(client+idRequest).split("_");
+            String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest;
+
+            System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             
-            clientsChain.put(tokens[2], new ArrayList<>());
-            clientsChain.get(tokens[2]).add(tokens[4]);
-            
+            byte[] sendData = Signer.sign(response);
+            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+            socket.send(sendPacket);
         }
+        
+        
+        
+        
         System.out.println("Map of lists: " + clientsChain);
     }
 
-    private static void sendMessage(String message, String port) throws Exception{
-        int messageNounce;
-        synchronized (lock) {
-            messageNounce=nounce;
-            nounce++;
-        }
-        
-        boolean responseReceived=false;
-        
-        DatagramSocket socket = new DatagramSocket();
-        int timeout=5000;
-        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(messageId++)+"_"+message;
-        byte[] messageBytes= sign(message);
-        InetAddress serverAddress = InetAddress.getByName("localhost");
-        DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
-        
-        // Send the packet to the server
-        socket.setSoTimeout(timeout);
-        
-        
-        while (!responseReceived) {
-            // Send the packet to the server
-            socket.send(packet);
-            
-            
-            
-            // Create a packet to receive the response from the server
-            byte[] receiveData = new byte[1024];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-
-            try {
-                
-                // Wait for the response from the server
-                socket.receive(receivePacket);
-                
-                // Print the response from the server
-                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                
-                
-                response=verifySign(response.getBytes());
-                // String[] tokens= response.split("_");
-
-                String[] tokens;
-                try{
-                    tokens= response.split("_");
-                }
-                catch(PatternSyntaxException e){
-                    System.out.println("Message format is incorret. Message will be ignored.");
-                    return;
-                }
-
-                //verify freshness
-                System.out.println("Received response from Server port: "+tokens[0]);
-
-                
-                if(Integer.parseInt(tokens[1])!=messageNounce){
-                    System.out.println("Trying to corrupt the message");
-                }
-                else{
-                    if(tokens[2].equals("ACK")){
-                        //System.out.println("Response Ok");
-                        
-                        
-                    }
-                    
-                }
-                    
-                
-                responseReceived = true;
-            } catch (SocketTimeoutException e) {
-                // If a timeout occurs, retry sending the message
-                System.out.println("Timeout occurred, retrying...");
-                
-                
-            }
-        }
-        
-        if (!responseReceived) {
-            System.out.println("No response received ");
-        }
-        socket.close();
-        
-            
-         
-    }
+    
 }
 
 

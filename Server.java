@@ -28,7 +28,6 @@ public class Server {
     private static Map<String, Integer> consensusValue = new HashMap<>();
     
     
-    private static int nounce=1000;  
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
@@ -45,10 +44,13 @@ public class Server {
     private static String[] ports;
     private static int lowestPort;
     //private static Signer signer= null;
+    //private static Comunication comunication=null;
 
 
     public static void main(String[] args) throws Exception {
         //signer = new Signer();
+        //comunication = new Comunication();
+        
         nServers=Integer.parseInt(args[0]);
 
         // nServers >= 3 * faults + 1;
@@ -58,6 +60,9 @@ public class Server {
         lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
         // Load RSA keys from files
+
+        Comunication.setServerPort(SERVER_PORT);
+        Comunication.setNServers(nServers);
 
         for(int i=2;i< args.length;i++){
             Signer.loadPublicKeyFromFile(args[i]);           
@@ -396,7 +401,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            broadcast(prepare,ports);
+            Comunication.broadcast(prepare,ports);
             
             
         }
@@ -443,7 +448,7 @@ public class Server {
                 }
             }
             if(broadcast)
-                broadcast(commit, ports);
+                Comunication.broadcast(commit, ports);
             
             
         }
@@ -537,55 +542,14 @@ public class Server {
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
 
-            broadcast(start, ports);
+            Comunication.broadcast(start, ports);
             
             
         }
         
     }
 
-    public static void broadcast(String message, String[] ports) throws Exception{
-        int i=0;
-        int id;
-        synchronized (lock) {
-            
-            id=messageId;
-            
-            messageId++;
-        }
-        for (String port : ports) {
-            System.out.println("port "+i);
-            if(i==nServers){
-                break;
-            }
-            i++;
-            /*if(Integer.parseInt(port)==SERVER_PORT){
-                continue;
-            }*/
-                
-            
-
-            final String arg = port;
-            Thread thread = new Thread(new Runnable()  {
-                public void run()  {
-
-                    try{
-                        System.out.println("sending to "+arg);
-                        sendMessage(message,arg,id);
-                        
-                    }catch(Exception e){
-                        System.out.println("erro");
-                        e.printStackTrace();
-                    }
-                    
-                }
-            });
-            thread.start();
-            
-            
-            
-        }
-    }
+    
    
 
     private static void consensus (String message, String[] ports) throws Exception{
@@ -651,94 +615,7 @@ public class Server {
         System.out.println("Map of lists: " + clientsChain);
     }
 
-    private static void sendMessage(String message, String port, int id) throws Exception{
-        int messageNounce;
-        //int id;
-        synchronized (lock) {
-            messageNounce=nounce;            
-            nounce++;
-            
-        }
-        
-        boolean responseReceived=false;
-        
-        DatagramSocket socket = new DatagramSocket();
-        int timeout=5000;
-        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
-        byte[] messageBytes= Signer.sign(message);
-        InetAddress serverAddress = InetAddress.getByName("localhost");
-        DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
-        
-        // Send the packet to the server
-        socket.setSoTimeout(timeout);
-        
-        
-        while (!responseReceived) {
-            // Send the packet to the server
-            socket.send(packet);
-            
-            
-            
-            
-            // Create a packet to receive the response from the server
-            byte[] receiveData = new byte[1024];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-
-            try {
-                
-                // Wait for the response from the server
-                socket.receive(receivePacket);
-                
-                // Print the response from the server
-                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                
-                
-                response=Signer.verifySign(response.getBytes());
-                // String[] tokens= response.split("_");
-
-                String[] tokens;
-                try{
-                    tokens= response.split("_");
-                }
-                catch(PatternSyntaxException e){
-                    System.out.println("Message format is incorret. Message will be ignored.");
-                    return;
-                }
-
-                //verify freshness
-                System.out.println("Received response from Server port: "+tokens[0]);
-
-                
-                if(Integer.parseInt(tokens[1])!=messageNounce){
-                    System.out.println("Trying to corrupt the message");
-                }
-                else{
-                    if(tokens[2].equals("ACK")){
-                        //System.out.println("Response Ok");
-                        
-                        
-                    }
-                    
-                }
-                    
-                
-                responseReceived = true;
-            } catch (SocketTimeoutException e) {
-                // If a timeout occurs, retry sending the message
-                System.out.println("Timeout occurred, retrying...");
-                
-                
-            }
-        }
-        
-        if (!responseReceived) {
-            System.out.println("No response received ");
-        }
-        socket.close();
-        
-            
-         
-    }
+    
 }
 
 

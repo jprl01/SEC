@@ -37,6 +37,7 @@ public class Signer {
     }
 
     static byte[] sign(String message) throws Exception{
+        
         byte[] messageBytes = message.getBytes();
         Signature dsaForSign = Signature.getInstance("SHA1withRSA");
         dsaForSign.initSign(privatekey);

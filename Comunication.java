@@ -1,0 +1,152 @@
+
+import java.net.*;
+
+import java.util.regex.PatternSyntaxException;
+
+
+public class Comunication {
+    static int NServers;
+    static int messageId=0;
+    static int nounce=1000;
+    static int SERVER_PORT;
+    private static final Object lock = new Object();
+    
+
+    public static void sendMessage(String message, String port, int id) throws Exception{
+        int messageNounce;
+        //int id;
+        synchronized (lock) {
+            messageNounce=nounce;            
+            nounce++;
+            
+        }
+        
+        boolean responseReceived=false;
+        
+        DatagramSocket socket = new DatagramSocket();
+        int timeout=5000;
+        message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
+        byte[] messageBytes= Signer.sign(message);
+        InetAddress serverAddress = InetAddress.getByName("localhost");
+        DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
+        
+        // Send the packet to the server
+        socket.setSoTimeout(timeout);
+        
+        
+        while (!responseReceived) {
+            // Send the packet to the server
+            socket.send(packet);
+            
+            
+            
+            
+            // Create a packet to receive the response from the server
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+
+            try {
+                
+                // Wait for the response from the server
+                socket.receive(receivePacket);
+                
+                // Print the response from the server
+                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                
+                
+                response=Signer.verifySign(response.getBytes());
+                // String[] tokens= response.split("_");
+
+                String[] tokens;
+                
+                tokens= response.split("_");
+                
+
+                //verify freshness
+                System.out.println("Received response from Server port: "+tokens[0]);
+
+                
+                if(Integer.parseInt(tokens[1])!=messageNounce){
+                    System.out.println("Trying to corrupt the message");
+                    return;
+                }
+                else{
+                    if(tokens[2].equals("ACK")){
+                        //System.out.println("Response Ok");
+                        
+                        
+                    }
+                    
+                }                   
+                
+                responseReceived = true;
+            } catch (SocketTimeoutException e) {
+                // If a timeout occurs, retry sending the message
+                System.out.println("Timeout occurred, retrying...");
+                
+                
+            }catch(PatternSyntaxException e){
+                System.out.println("Message format is incorret. Message will be ignored.");
+                return;
+            }
+        }
+        
+        if (!responseReceived) {
+            System.out.println("No response received ");
+        }
+        socket.close();
+        
+            
+         
+    }
+
+    public static void broadcast(String message, String[] ports) throws Exception{
+        int i=0;
+        int id;
+        synchronized (lock) {
+            
+            id=messageId;
+            
+            messageId++;
+        }
+        for (String port : ports) {
+            System.out.println("port "+i);
+            if(i==NServers){
+                break;
+            }
+            i++;
+            /*if(Integer.parseInt(port)==SERVER_PORT){
+                continue;
+            }*/   
+
+            final String arg = port;
+            Thread thread = new Thread(new Runnable()  {
+                public void run()  {
+
+                    try{
+                        System.out.println("sending to "+arg);
+                        sendMessage(message,arg,id);
+                        
+                    }catch(Exception e){
+                        System.out.println("erro");
+                        e.printStackTrace();
+                    }
+                    
+                }
+            });
+            thread.start();
+            
+            
+            
+        }
+    }
+
+    public static void setServerPort(int serverPort) {
+        SERVER_PORT = serverPort;
+    }
+
+    public static void setNServers(int nServers) {
+        NServers = nServers;
+    }
+
+}

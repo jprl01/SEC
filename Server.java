@@ -1,5 +1,5 @@
 import java.net.*;
-import java.security.*;
+
 
 import java.util.*;
 import java.util.regex.PatternSyntaxException;
@@ -9,7 +9,7 @@ import java.io.IOException;
 
 public class Server {
 
-    private static final int BLOCK_SIZE=3;
+    private static final int BLOCK_SIZE=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -32,10 +32,11 @@ public class Server {
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
 
+    private static String[] sourcePrep =new String[3];
+    static int ind=0;
     
     
     
-    private static int messageId=0;
     private static int consensus_instance=0;
     private static boolean consensus_started=false;
     private static int nServers;
@@ -43,6 +44,7 @@ public class Server {
     private static int byznatineQuorum;
     private static String[] ports;
     private static int lowestPort;
+    private static DatagramSocket serverSocket;
     //private static Signer signer= null;
     //private static Comunication comunication=null;
 
@@ -85,7 +87,7 @@ public class Server {
         
 
         // Create a DatagramSocket
-        DatagramSocket socket = new DatagramSocket(SERVER_PORT);
+        serverSocket = new DatagramSocket(SERVER_PORT);
                
         
         
@@ -97,12 +99,12 @@ public class Server {
             
             
             
-            socket.receive(receivePacket);
+            serverSocket.receive(receivePacket);
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
                         
-                        process(receivePacket,socket);
+                        process(receivePacket);
                         
                         
                     }catch(Exception e){
@@ -126,7 +128,7 @@ public class Server {
         
     }
 
-    private static void process(DatagramPacket receivePacket,DatagramSocket socket) throws Exception{
+    public static void process(DatagramPacket receivePacket) throws Exception{
         String[] tokens;
         String command;
         DatagramPacket sendPacket;
@@ -151,7 +153,7 @@ public class Server {
                     
             byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-            socket.send(sendPacket);
+            serverSocket.send(sendPacket);
             return;
         }
         
@@ -184,17 +186,6 @@ public class Server {
                     }
                     
 
-                    //receivedIds.add(tokens[2]+"_"+tokens[3]);
-                    //expectedId++;
-
-                    /*String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + idRequest;
-
-                    System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
-
-                    byte[] sendData = sign(response);
-                    sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                    socket.send(sendPacket);*/
-
                     return;
                 }
                 if(leader){
@@ -207,7 +198,7 @@ public class Server {
             
             
             
-            //String response = String.valueOf(SERVER_PORT)+"_"+tokens[0]+"_ACK_" + tokens[3];      
+              
                       
             
             if(leader){
@@ -229,15 +220,7 @@ public class Server {
                 
             }
 
-
-            //expectedId++;
-            /*
-            System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
-            boolean received=false;
-            byte[] sendData = sign(response);
-            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-            socket.send(sendPacket);
-            sendConfirmation(sendPacket,response);*/       
+     
             
         }else{
             synchronized(lockServers){
@@ -251,10 +234,13 @@ public class Server {
             
             String senderPort = tokens[0];
             
-            String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
-            byte[] sendData = Signer.sign(response);
-            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-            socket.send(sendPacket);
+            if((!"PRE-PREPARE".equals(tokens[3]) || ("PRE-PREPARE".equals(tokens[3]) && lowestPort==SERVER_PORT)) && !"PREPARE".equals(tokens[3])){
+                String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
+                byte[] sendData = Signer.sign(response);
+                sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+                serverSocket.send(sendPacket);
+            }   
+            
 
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
@@ -263,7 +249,7 @@ public class Server {
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
                         System.out.println("analysing command "+command);
-                        analyse_command(command,ports,leaderSent, senderPort,socket);
+                        analyse_command(command,ports,leaderSent, senderPort,receivePacket.getPort(),tokens[1]);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -338,46 +324,9 @@ public class Server {
         thread.start();
     }
 
-    private static void sendConfirmation(DatagramPacket sendPacket,String response) throws Exception{
-        
-        DatagramSocket confSocket = new DatagramSocket();
-            confSocket.setSoTimeout(5000);
-            Thread thread = new Thread(new Runnable()  {
-                public void run()  {
-                    boolean received=false;
-                    while(!received){
-                        try{
-                            
-                            
-                            confSocket.send(sendPacket);
-                            
-            
-                            byte[] confirmationData = new byte[1024];
-                            DatagramPacket confirmationPacket = new DatagramPacket(confirmationData, confirmationData.length);           
-                            System.out.println("Enviar resposta: "+response);
-                            confSocket.receive(confirmationPacket);
-                            
+    
 
-                            String confirmationMessage = new String(confirmationPacket.getData(), 0, confirmationPacket.getLength());
-                            System.out.print("confirmation "+confirmationMessage);
-                            String conf = Signer.verifySign(confirmationMessage.getBytes());
-                            received=true;
-                                                                 
-                        }catch(SocketTimeoutException e){
-                            System.out.println("trying again...");
-                        }catch(IOException e){
-                            System.out.println("erro..");
-                        }catch(Exception e){
-                            System.out.println("erro..");
-                        }
-                    }
-                    
-                }
-            });
-            thread.start(); 
-    }
-
-    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,DatagramSocket socket) throws Exception{
+    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort,String nounceR) throws Exception{
         System.out.println("\n\n####################");
         System.out.println(command);
         System.out.println("Sender port: " + senderPort);
@@ -401,7 +350,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            Comunication.broadcast(prepare,ports);
+            Comunication.broadcast(prepare,ports,false,leaderSent,String.valueOf(socketPort),nounceR);
             
             
         }
@@ -439,16 +388,25 @@ public class Server {
                         
                     }
                     consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
+
                     
+                    System.out.println("indiceeeeeeeeeeeee "+ind);
+                    sourcePrep[ind]=String.valueOf(socketPort);
+                    ind++;
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
+
+                        //descomentar isto
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
                     }
                 }
             }
-            if(broadcast)
-                Comunication.broadcast(commit, ports);
+            if(broadcast){
+                Comunication.broadcast(commit, sourcePrep,false,false,null,"-1");
+                ind=0;
+            }
+                
             
             
         }
@@ -499,7 +457,7 @@ public class Server {
 
             }
             if(decide)
-                decide(command,socket);
+                decide(command);
             
             
         }else{
@@ -507,12 +465,12 @@ public class Server {
         }
     }
 
-    private static void decide(String command,DatagramSocket socket) throws Exception{
+    private static void decide(String command) throws Exception{
         
         
         
         
-        parseCommand(command,socket);
+        parseCommand(command);
         
         consensus_instance++;
                 
@@ -542,7 +500,7 @@ public class Server {
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
 
-            Comunication.broadcast(start, ports);
+            Comunication.broadcast(start, ports,true,false,null,"-1");
             
             
         }
@@ -558,7 +516,7 @@ public class Server {
         
     }
 
-    private static void parseCommand (String command,DatagramSocket socket) throws Exception{
+    private static void parseCommand (String command) throws Exception{
         //2_1_Joao_1_adeus
         
         System.out.println("deciding command "+command);
@@ -606,7 +564,7 @@ public class Server {
             
             byte[] sendData = Signer.sign(response);
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
-            socket.send(sendPacket);
+            serverSocket.send(sendPacket);
         }
         
         

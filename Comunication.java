@@ -12,12 +12,17 @@ public class Comunication {
     private static final Object lock = new Object();
     
 
-    public static void sendMessage(String message, String port, int id) throws Exception{
+    public static void sendMessage(String message, String port, int id,String nounceR) throws Exception{
         int messageNounce;
         //int id;
         synchronized (lock) {
-            messageNounce=nounce;            
-            nounce++;
+            if(Integer.parseInt(nounceR)!=-1){
+                messageNounce=Integer.parseInt(nounceR);
+            }else{
+                messageNounce=nounce;            
+                nounce++;
+            }
+            
             
         }
         
@@ -50,17 +55,41 @@ public class Comunication {
                 // Wait for the response from the server
                 socket.receive(receivePacket);
                 
-                // Print the response from the server
-                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
-                
+                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());               
                 response=Signer.verifySign(response.getBytes());
-                // String[] tokens= response.split("_");
+                
 
                 String[] tokens;
                 
                 tokens= response.split("_");
+                System.out.println("lalalalal "+response);
+                //response to PRE-PREPARE = PREPARE
                 
+                //provisorio este true
+                
+                if(tokens.length>3 && (tokens[3].equals("PREPARE") || tokens[3].equals("COMMIT")) ){
+                    System.out.println("lalalalal "+response);
+                    System.out.println("recebi prepare");                    
+                    responseReceived = true;
+
+                    Thread thread = new Thread(new Runnable()  {
+                        public void run()  {
+        
+                            try{
+                                Server.process(receivePacket);
+                                
+                            }catch(Exception e){
+                                System.out.println("erro");
+                                e.printStackTrace();
+                            }
+                            
+                        }
+                    });
+                    thread.start();
+                    
+                }
+                    
 
                 //verify freshness
                 System.out.println("Received response from Server port: "+tokens[0]);
@@ -68,11 +97,12 @@ public class Comunication {
                 
                 if(Integer.parseInt(tokens[1])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
-                    return;
+                    //continue;
                 }
                 else{
+                    System.out.println("Response Ok");
                     if(tokens[2].equals("ACK")){
-                        //System.out.println("Response Ok");
+                        
                         
                         
                     }
@@ -82,7 +112,7 @@ public class Comunication {
                 responseReceived = true;
             } catch (SocketTimeoutException e) {
                 // If a timeout occurs, retry sending the message
-                System.out.println("Timeout occurred, retrying...");
+                System.out.println("Timeout occurred, retrying... "+message);
                 
                 
             }catch(PatternSyntaxException e){
@@ -100,7 +130,7 @@ public class Comunication {
          
     }
 
-    public static void broadcast(String message, String[] ports) throws Exception{
+    public static void broadcast(String message, String[] ports,Boolean send, Boolean leaderSent,String leaderPort,String nounce) throws Exception{
         int i=0;
         int id;
         synchronized (lock) {
@@ -115,17 +145,24 @@ public class Comunication {
                 break;
             }
             i++;
-            /*if(Integer.parseInt(port)==SERVER_PORT){
+            //dont send to himself
+            if(Integer.parseInt(port)==SERVER_PORT && !send){
                 continue;
-            }*/   
-
+            }
+            //ta hardcoded dar fix
+            if(leaderSent && port.equals(String.valueOf(1234))){
+                System.out.println("testar broadcast prepare");
+                port=leaderPort;
+            }
             final String arg = port;
+
+            
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
 
                     try{
                         System.out.println("sending to "+arg);
-                        sendMessage(message,arg,id);
+                        sendMessage(message,arg,id,nounce);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -140,6 +177,8 @@ public class Comunication {
             
         }
     }
+
+    
 
     public static void setServerPort(int serverPort) {
         SERVER_PORT = serverPort;

@@ -26,6 +26,7 @@ public class Client {
     private static int faults=1;
     private static int quorum;
     private static Map<String, List<String>> portsAcks = new HashMap<>();
+    
 
     public static void main(String[] args) throws Exception {
         nServers=Integer.parseInt(args[1]);

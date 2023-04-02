@@ -223,6 +223,10 @@ public class Server {
      
             
         }else{
+
+            /*if(!tokens[4].equals(String.valueOf(consensus_instance))){
+                return;
+            }*/
             synchronized(lockServers){
                 if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
                     System.out.println("duplicated message");
@@ -271,7 +275,12 @@ public class Server {
                     
             if(idRequest==0){
                 System.out.println(" comando certo");
-                idRequests.put(client,1);
+                if(client.equals(String.valueOf(SERVER_PORT))){
+                    idRequests.put(client,3);
+                }else{
+                    idRequests.put(client,1);
+                }
+                
             }                            
             else{
                 System.out.println(" comando errado");
@@ -280,9 +289,15 @@ public class Server {
             }
                 
         }
-        else if(idRequests.get(client)==idRequest){
+        else if(idRequests.get(client)==idRequest ){
             System.out.println("comando certo");
-            idRequests.put(client,idRequest+1);
+            if(client.equals(String.valueOf(SERVER_PORT))){
+                idRequests.put(client,idRequest+3);
+            }else{
+                idRequests.put(client,idRequest+1);
+            }
+            
+            
         }
         else{
             System.out.println(" comando errado");
@@ -298,16 +313,23 @@ public class Server {
         Thread thread = new Thread(new Runnable()  {
             
             public void run()  {
+                int i=1;
                 String block;
                 String request=queue.poll();
                 String tokens[]=request.split("_");
                 block=request.substring(tokens[0].length()+tokens[1].length()+2);
                 
-                while(!queue.isEmpty()){
-                    
+                while(!queue.isEmpty() ){
+                    if(i==BLOCK_SIZE){
+                        break;
+                    }
                     request=queue.poll();
                     tokens=request.split("_");
                     block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
+                    i++;
+                    
+                    
+                        
                 }
                 try{
                     
@@ -318,6 +340,8 @@ public class Server {
                     System.out.println("erro");
                     e.printStackTrace();
                 }
+                
+                
                 
             }
         });
@@ -395,7 +419,7 @@ public class Server {
                     ind++;
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-
+                        ind=0;
                         //descomentar isto
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
@@ -404,7 +428,7 @@ public class Server {
             }
             if(broadcast){
                 Comunication.broadcast(commit, sourcePrep,false,false,null,"-1");
-                ind=0;
+                
             }
                 
             
@@ -480,7 +504,7 @@ public class Server {
 
 
     public static void commmandsQueue() throws Exception{
-        if(queue.size()==BLOCK_SIZE && leader){
+        if(queue.size()>=BLOCK_SIZE && leader){
             System.out.println("There are BLOCKS to run");
             sendBlock();
             

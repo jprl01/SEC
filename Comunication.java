@@ -154,6 +154,8 @@ public class Comunication {
                 System.out.println("testar broadcast prepare");
                 port=leaderPort;
             }
+
+
             final String arg = port;
 
             

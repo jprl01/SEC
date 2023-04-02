@@ -47,6 +47,7 @@ public class Server {
     //private static Comunication comunication=null;
 
 
+
     public static void main(String[] args) throws Exception {
         //signer = new Signer();
         //comunication = new Comunication();
@@ -82,7 +83,8 @@ public class Server {
             System.out.println("I am the leader server.");
         } 
 
-        
+        ServerManagement serverManagement = new ServerManagement();
+
 
         // Create a DatagramSocket
         DatagramSocket socket = new DatagramSocket(SERVER_PORT);
@@ -102,7 +104,7 @@ public class Server {
                 public void run()  {
                     try{
                         
-                        process(receivePacket,socket);
+                        process(receivePacket,socket, serverManagement);
                         
                         
                     }catch(Exception e){
@@ -126,7 +128,7 @@ public class Server {
         
     }
 
-    private static void process(DatagramPacket receivePacket,DatagramSocket socket) throws Exception{
+    private static void process(DatagramPacket receivePacket,DatagramSocket socket, ServerManagement serverManagement) throws Exception{
         String[] tokens;
         String command;
         DatagramPacket sendPacket;
@@ -154,11 +156,27 @@ public class Server {
             socket.send(sendPacket);
             return;
         }
+
+        /*
+         * 
+         * 
+         */
+        if(tokens[1].equals("OpenAccount")){
+            //tokens[2] = client name
+            //tokens[3] = amount
+            serverManagement.createAccount(tokens[1], tokens[2]);
+        }
+        if(tokens[1].equals("checkBalance")){
+            //tokens[1] = client name
+            //tokens[2] = amount
+            System.out.println("Value: " + serverManagement.checkBalance("clientPublicKey"));
+        }
+        /*
+         * 
+         * 
+         */
         
-        
-        System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(str);
-        System.out.println("%%%%%%%%%%%%%%%%");
+    
         if(tokens[1].equals("Client")){
             //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);

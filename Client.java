@@ -46,8 +46,8 @@ public class Client {
         
         Scanner myObj = new Scanner(System.in); 
          
-        showCreateAccountInterface(); 
-        showClientInterface();
+        showCreateAccountInterface(ports); 
+        showClientInterface(ports);
 
         // Create a DatagramSocket
         //DatagramSocket socket = new DatagramSocket();
@@ -90,7 +90,7 @@ public class Client {
         
     }
 
-    private static void showCreateAccountInterface(){
+    private static void showCreateAccountInterface(String[] ports){
         Scanner myObj = new Scanner(System.in); 
         String initialValue;
 
@@ -103,7 +103,7 @@ public class Client {
             try {
                 int initialAmount = Integer.parseInt(initialValue);
                 if (initialAmount > 0) {
-                    // openAccount(initialAmount);
+                    openAccount(initialAmount, ports);
                     System.out.println("\nNew account for user " + clientName + " created with an initial amount of " + initialAmount + ".\n");
                     break;
                 }
@@ -118,7 +118,9 @@ public class Client {
         
     }
 
-    private static void showClientInterface() {
+
+
+    private static void showClientInterface(String[] ports) {
         Scanner myObj = new Scanner(System.in); 
 
 
@@ -134,7 +136,7 @@ public class Client {
             switch (choice)
             {
                 case "1": {
-                    // checkBalance();
+                    checkBalance(ports);
                     System.out.println("Checking balance.");
                     break;
                 }
@@ -152,6 +154,42 @@ public class Client {
                     System.out.println("\nIncorrect option. Please, choose one of the four available options.\n");
             }
         } 
+    }
+
+    private static void openAccount(int initialAmount, String[] ports) {
+        String openAccountMessage = "OpenAccount" + "_" + clientName + "_" + initialAmount;
+        Thread thread = new Thread(new Runnable()  {
+            public void run()  {
+                try{
+                    
+                    
+                    broadcast(openAccountMessage,ports);
+                    
+                }catch(Exception e){
+                    System.out.println(e.getMessage());
+                }
+                
+            }
+        });
+        thread.start();
+    }
+
+    private static void checkBalance(String[] ports) {
+        String openAccountMessage = "CheckBalance";
+        Thread thread = new Thread(new Runnable()  {
+            public void run()  {
+                try{
+                    
+                    
+                    broadcast(openAccountMessage,ports);
+                    
+                }catch(Exception e){
+                    System.out.println(e.getMessage());
+                }
+                
+            }
+        });
+        thread.start();
     }
 
     private static boolean parseCommand(String command) throws Exception{

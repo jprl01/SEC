@@ -46,48 +46,112 @@ public class Client {
         
         Scanner myObj = new Scanner(System.in); 
          
-         
-        
+        showCreateAccountInterface(); 
+        showClientInterface();
 
         // Create a DatagramSocket
         //DatagramSocket socket = new DatagramSocket();
         
-        while(true){
-            String message;
-            System.out.println("Type something to server");
-            String command= myObj.nextLine();
+        // while(true){
+        //     String message;
+        //     System.out.println("Type something to server");
+        //     String command= myObj.nextLine();
 
             
-            //if(!parseCommand(command)){
-             //   continue;
-            //}
-            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
-            Thread thread = new Thread(new Runnable()  {
-                public void run()  {
-                    try{
+        //     //if(!parseCommand(command)){
+        //      //   continue;
+        //     //}
+        //     message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
+        //     Thread thread = new Thread(new Runnable()  {
+        //         public void run()  {
+        //             try{
                         
                         
-                        broadcast(message,ports);
+        //                 broadcast(message,ports);
                         
-                    }catch(Exception e){
-                        System.out.println("erro");
-                        e.printStackTrace();
-                    }
+        //             }catch(Exception e){
+        //                 System.out.println("erro");
+        //                 e.printStackTrace();
+        //             }
                     
-                }
-            });
-            thread.start();
+        //         }
+        //     });
+        //     thread.start();
             
             
             
 
         // Send the packet to the server
+        // }
+        
+        
+
+
+        
+    }
+
+    private static void showCreateAccountInterface(){
+        Scanner myObj = new Scanner(System.in); 
+        String initialValue;
+
+        System.out.println("Welcome "  + clientName + "!\n");
+        
+
+        while(true) {
+            System.out.println("To create an account, please provide us with the initial value: ");
+            initialValue = myObj.nextLine();
+            try {
+                int initialAmount = Integer.parseInt(initialValue);
+                if (initialAmount > 0) {
+                    // openAccount(initialAmount);
+                    System.out.println("\nNew account for user " + clientName + " created with an initial amount of " + initialAmount + ".\n");
+                    break;
+                }
+                else {
+                    System.out.print("1nPlease, provide a posiitve amount.\n");
+                }
+            } catch (NumberFormatException nfe){
+                System.out.print("\nPlease, provide a positive numeric value.\n");
+            }
         }
+        // myObj.close();
         
-        
+    }
+
+    private static void showClientInterface() {
+        Scanner myObj = new Scanner(System.in); 
 
 
-        
+        while(true) {
+            System.out.println("\nPlease, select an option:\n");
+            System.out.print("1 - Check balance.\n");
+            System.out.print("2 - Transfer amount.\n");
+            System.out.print("3 - Exit.\n");
+
+
+            String choice = myObj.nextLine();
+
+            switch (choice)
+            {
+                case "1": {
+                    // checkBalance();
+                    System.out.println("Checking balance.");
+                    break;
+                }
+                case "2": {
+                    // transfer();
+                    System.out.println("Transfering money.");
+                    break;
+                }
+                case "3": {
+                    System.out.println("Goodbye!");
+                    System.exit(0);
+                    break;
+                }
+                default:
+                    System.out.println("\nIncorrect option. Please, choose one of the four available options.\n");
+            }
+        } 
     }
 
     private static boolean parseCommand(String command) throws Exception{

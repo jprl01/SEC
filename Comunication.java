@@ -25,7 +25,7 @@ public class Comunication {
             
             
         }
-        
+        System.out.println("sending to "+port);
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
@@ -57,19 +57,19 @@ public class Comunication {
                 
                 
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());               
-                response=Signer.verifySign(response.getBytes());
+                
                 
 
                 String[] tokens;
                 
                 tokens= response.split("_");
-                System.out.println("lalalalal "+response);
+                //System.out.println("lalalalal "+response);
                 //response to PRE-PREPARE = PREPARE
                 
                 //provisorio este true
                 
                 if(tokens.length>3 && (tokens[3].equals("PREPARE") || tokens[3].equals("COMMIT")) ){
-                    System.out.println("lalalalal "+response);
+                    //System.out.println("lalalalal "+response);
                     System.out.println("recebi prepare");                    
                     responseReceived = true;
 
@@ -88,6 +88,8 @@ public class Comunication {
                     });
                     thread.start();
                     
+                }else{
+                    response=Signer.verifySign(response.getBytes());
                 }
                     
 
@@ -136,7 +138,7 @@ public class Comunication {
         synchronized (lock) {
             
             id=messageId;
-            
+            Server.setBroadcastId(id);
             messageId++;
         }
         for (String port : ports) {
@@ -146,9 +148,9 @@ public class Comunication {
             }
             i++;
             //dont send to himself
-            if(Integer.parseInt(port)==SERVER_PORT && !send){
-                continue;
-            }
+            //if(Integer.parseInt(port)==SERVER_PORT && !send){
+            //   continue;
+            //}
             //ta hardcoded dar fix
             if(leaderSent && port.equals(String.valueOf(1234))){
                 System.out.println("testar broadcast prepare");
@@ -163,7 +165,7 @@ public class Comunication {
                 public void run()  {
 
                     try{
-                        System.out.println("sending to "+arg);
+                        
                         sendMessage(message,arg,id,nounce);
                         
                     }catch(Exception e){

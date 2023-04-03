@@ -34,7 +34,8 @@ public class Server {
 
     private static String[] sourcePrep =new String[3];
     static int ind=0;
-    
+    private static int broadcastId;
+    //private static boolean broadcast=false;
     
     
     private static int consensus_instance=0;
@@ -204,7 +205,7 @@ public class Server {
             if(leader){
                 
                 
-                command=str.substring(tokens[0].length()+tokens[1].length()+2);
+                //command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
                 queue.add(str);
 
@@ -238,7 +239,7 @@ public class Server {
             
             String senderPort = tokens[0];
             
-            if((!"PRE-PREPARE".equals(tokens[3]) || ("PRE-PREPARE".equals(tokens[3]) && lowestPort==SERVER_PORT)) && !"PREPARE".equals(tokens[3])){
+            if((!"PRE-PREPARE".equals(tokens[3]) /*|| ("PRE-PREPARE".equals(tokens[3]) && lowestPort==SERVER_PORT)*/) && !"PREPARE".equals(tokens[3])){
                 String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
@@ -275,11 +276,12 @@ public class Server {
                     
             if(idRequest==0){
                 System.out.println(" comando certo");
-                if(client.equals(String.valueOf(SERVER_PORT))){
+                /*if(client.equals(String.valueOf(SERVER_PORT))){
                     idRequests.put(client,3);
                 }else{
-                    idRequests.put(client,1);
-                }
+                    
+                }*/
+                idRequests.put(client,1);
                 
             }                            
             else{
@@ -291,11 +293,12 @@ public class Server {
         }
         else if(idRequests.get(client)==idRequest ){
             System.out.println("comando certo");
-            if(client.equals(String.valueOf(SERVER_PORT))){
+            /*if(client.equals(String.valueOf(SERVER_PORT))){
                 idRequests.put(client,idRequest+3);
             }else{
-                idRequests.put(client,idRequest+1);
-            }
+                
+            }*/
+            idRequests.put(client,idRequest+1);
             
             
         }
@@ -374,7 +377,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            Comunication.broadcast(prepare,ports,false,leaderSent,String.valueOf(socketPort),nounceR);
+            Comunication.broadcast(prepare,ports,true,leaderSent,String.valueOf(socketPort),nounceR);
             
             
         }
@@ -405,6 +408,7 @@ public class Server {
                 }
 
                 if(noDupliactedPort){
+                    
                     if(!consensusValuePrepare.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
                         requests=1;
                     }else{
@@ -412,15 +416,19 @@ public class Server {
                         
                     }
                     consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
-
+                    if(requests>byznatineQuorum){
+                        System.out.println("prepare extra");
+                        Comunication.sendMessage(commit, String.valueOf(socketPort), broadcastId, "-1");
+                        return;
+                    }
                     
                     System.out.println("indiceeeeeeeeeeeee "+ind);
                     sourcePrep[ind]=String.valueOf(socketPort);
                     ind++;
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
-                        consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
+                        //consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
                         ind=0;
-                        //descomentar isto
+                        
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
                     }
@@ -495,7 +503,7 @@ public class Server {
         
         
         parseCommand(command);
-        
+        //broadcast=false;
         consensus_instance++;
                 
         commmandsQueue();
@@ -595,6 +603,10 @@ public class Server {
         
         
         System.out.println("Map of lists: " + clientsChain);
+    }
+
+    public static void setBroadcastId(int id){
+        broadcastId=id;
     }
 
     

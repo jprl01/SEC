@@ -49,9 +49,9 @@ public class Client {
          
          
         
-
         // Create a DatagramSocket
         //DatagramSocket socket = new DatagramSocket();
+        
         
         while(true){
             String message;
@@ -161,6 +161,9 @@ public class Client {
         int timeout=5000;
         message= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= Signer.sign(message);
+        //messageBytes=Signer.sign(new String(String.valueOf(messageNounce).getBytes()+"_".getBytes()+message.getBytes()));
+        //String ola =new String(messageBytes);
+        //messageBytes=ola.getBytes();
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         

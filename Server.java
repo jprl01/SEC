@@ -16,7 +16,7 @@ public class Server {
     private static final Object lockCommit = new Object();
     
     private static  int SERVER_PORT ;
-    private static final int BUFFER_SIZE = 1024;
+    private static final int BUFFER_SIZE = 65000;
     private static boolean leader=false;
     private static int round=1;
     private static Queue<String> queue = new LinkedList<>();
@@ -35,7 +35,7 @@ public class Server {
     private static String[] sourcePrep =new String[3];
     static int ind=0;
     private static int broadcastId;
-    //private static boolean broadcast=false;
+    
     
     
     private static int consensus_instance=0;
@@ -46,13 +46,11 @@ public class Server {
     private static String[] ports;
     private static int lowestPort;
     private static DatagramSocket serverSocket;
-    //private static Signer signer= null;
-    //private static Comunication comunication=null;
+    
 
 
     public static void main(String[] args) throws Exception {
-        //signer = new Signer();
-        //comunication = new Comunication();
+        
         
         nServers=Integer.parseInt(args[0]);
 
@@ -62,11 +60,11 @@ public class Server {
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
-        // Load RSA keys from files
+        
 
         Comunication.setServerPort(SERVER_PORT);
         Comunication.setNServers(nServers);
-
+        // Load RSA keys from files
         for(int i=2;i< args.length;i++){
             Signer.loadPublicKeyFromFile(args[i]);           
              
@@ -91,40 +89,41 @@ public class Server {
         serverSocket = new DatagramSocket(SERVER_PORT);
                
         
-        
-        while(true){
+        try{
+            while(true){
             
             
-            byte[] data = new byte[BUFFER_SIZE];
-            DatagramPacket receivePacket = new DatagramPacket(data, data.length);
-            
-            
-            
-            serverSocket.receive(receivePacket);
-            Thread thread = new Thread(new Runnable()  {
-                public void run()  {
-                    try{
+                byte[] data = new byte[BUFFER_SIZE];
+                DatagramPacket receivePacket = new DatagramPacket(data, data.length);
+                
+                
+                
+                serverSocket.receive(receivePacket);
+                Thread thread = new Thread(new Runnable()  {
+                    public void run()  {
+                        try{
+                            
+                            process(receivePacket);
+                            
+                            
+                        }catch(Exception e){
+                            System.out.println("erro");
+                            e.printStackTrace();
+                        }
                         
-                        process(receivePacket);
-                        
-                        
-                    }catch(Exception e){
-                        System.out.println("erro");
-                        e.printStackTrace();
                     }
+                });
+                thread.start();
                     
-                }
-            });
-            thread.start();
-            //lala(receivePacket, socket);    
-            // Receive the packet from the client
-            
-            
-            
-            
+                
+                
+            }
+        }catch(SocketException e){
+            System.out.println("error with socket");
+            serverSocket.close();
         }
-        // Close the socket
-        //socket.close();
+        
+        
         
         
     }
@@ -139,6 +138,7 @@ public class Server {
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
         
+
         String str = Signer.verifySign(receivedMessage.getBytes());
         //System.out.println("olaaa "+str);
         try{
@@ -160,9 +160,10 @@ public class Server {
         
         
         System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(str);
+        System.out.println(str.split("\n")[0]);
         System.out.println("%%%%%%%%%%%%%%%%");
         if(tokens[1].equals("Client")){
+            //System.out.println("ola "+receivedMessage);
             //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);
             clientsSource.put(tokens[2]+idRequest,clientAddress.getHostAddress()+"_"+clientPort+"_"+tokens[0]);
@@ -183,7 +184,7 @@ public class Server {
                     if(leader){
                                                
                             
-                        queue.add(str);
+                        queue.add(receivedMessage);
                     }
                     
 
@@ -194,20 +195,15 @@ public class Server {
                 }
                 
                 
-            }
-            
-            
-            
-            
-              
-                      
+            }                     
             
             if(leader){
                 
                 
                 //command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
-                queue.add(str);
+                queue.add(receivedMessage);
+                //Signer.sign(receivedMessage);
 
                 System.out.println("queue "+queue.size());
                 if(queue.size()==BLOCK_SIZE){
@@ -239,7 +235,8 @@ public class Server {
             
             String senderPort = tokens[0];
             
-            if((!"PRE-PREPARE".equals(tokens[3]) /*|| ("PRE-PREPARE".equals(tokens[3]) && lowestPort==SERVER_PORT)*/) && !"PREPARE".equals(tokens[3])){
+            //only send acks responding to commits
+            if((!"PRE-PREPARE".equals(tokens[3]) ) && !"PREPARE".equals(tokens[3])){
                 String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
@@ -253,7 +250,7 @@ public class Server {
                         boolean leaderSent=false;
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
-                        System.out.println("analysing command "+command);
+                        System.out.println("analysing command "+command.split("\n")[0]);
                         analyse_command(command,ports,leaderSent, senderPort,receivePacket.getPort(),tokens[1]);
                         
                     }catch(Exception e){
@@ -272,15 +269,13 @@ public class Server {
     }
     private static boolean processIdRequest(String client, int idRequest){
         
+        //see if command is the expected:
+        
         if(!idRequests.containsKey(client)){
                     
             if(idRequest==0){
                 System.out.println(" comando certo");
-                /*if(client.equals(String.valueOf(SERVER_PORT))){
-                    idRequests.put(client,3);
-                }else{
-                    
-                }*/
+                
                 idRequests.put(client,1);
                 
             }                            
@@ -293,11 +288,7 @@ public class Server {
         }
         else if(idRequests.get(client)==idRequest ){
             System.out.println("comando certo");
-            /*if(client.equals(String.valueOf(SERVER_PORT))){
-                idRequests.put(client,idRequest+3);
-            }else{
-                
-            }*/
+            
             idRequests.put(client,idRequest+1);
             
             
@@ -313,28 +304,32 @@ public class Server {
 
     private static void sendBlock() throws Exception{
         
+        //append n commands (BLOCK_SIZE) to a block and start a consensus instance
         Thread thread = new Thread(new Runnable()  {
             
             public void run()  {
-                int i=1;
-                String block;
-                String request=queue.poll();
-                String tokens[]=request.split("_");
-                block=request.substring(tokens[0].length()+tokens[1].length()+2);
-                
-                while(!queue.isEmpty() ){
-                    if(i==BLOCK_SIZE){
-                        break;
-                    }
-                    request=queue.poll();
-                    tokens=request.split("_");
-                    block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
-                    i++;
-                    
-                    
-                        
-                }
                 try{
+                    int i=1;
+                    String block;
+                    String request=queue.poll();
+                    //String tokens[]=request.split("_");
+                    //block=request.substring(tokens[0].length()+tokens[1].length()+2);
+                    block=request;
+
+                    while(!queue.isEmpty() ){
+                        if(i==BLOCK_SIZE){
+                            break;
+                        }
+                        request=queue.poll();
+                        //tokens=request.split("_");
+                        //block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
+                        block+=" "+request;
+                        i++;
+                        
+                        
+                            
+                    }
+                
                     
                     consensus(block,ports);
                     
@@ -373,7 +368,30 @@ public class Server {
         if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance)) && leaderSent){
             
             command=command.substring(12);
+
             
+            String block=command.substring(tokens[1].length()+tokens[2].length()+2);
+
+            String transactions[]=block.split(" ");
+
+            //verifying if commands in block are or not signed by the client
+            for(int i=0;i<BLOCK_SIZE;i++){
+                //System.out.println("\n\ntransaction "+transactions[i]);
+                String str=Signer.verifySign(transactions[i].getBytes());
+
+                //if not sent by client invalidate block
+                if(str.split("_")[1].equals("NACK")){
+                    String response = String.valueOf(SERVER_PORT)+"_"+str;
+                    byte[] sendData = Signer.sign(response);
+                    DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("localhost"), socketPort);
+                    serverSocket.send(sendPacket);
+                    return;
+                        
+                }
+                
+
+            }
+
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
@@ -566,6 +584,7 @@ public class Server {
         String transactions[]=command.split(" ");
 
         for(int i=0;i<BLOCK_SIZE;i++){
+            
             try{
                 
                 tokens= transactions[i].split("_");
@@ -575,9 +594,9 @@ public class Server {
                 continue;
             }
 
-            String client=tokens[0];
-            String exec=tokens[2];
-            String idRequest=tokens[1];
+            String client=tokens[2];
+            String exec=tokens[4].split("\n")[0];
+            String idRequest=tokens[3];
 
             if(clientsChain.containsKey(client)){
                 clientsChain.get(client).add(exec);

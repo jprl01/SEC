@@ -31,7 +31,9 @@ public class Comunication {
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
+        //System.out.println("message to send "+message);
         byte[] messageBytes= Signer.sign(message);
+        //System.out.println("\n\nsgined message "+new String(messageBytes));
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
@@ -47,7 +49,7 @@ public class Comunication {
             
             
             // Create a packet to receive the response from the server
-            byte[] receiveData = new byte[1024];
+            byte[] receiveData = new byte[65000];
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 
             try {

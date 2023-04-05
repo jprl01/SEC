@@ -1,6 +1,7 @@
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -10,30 +11,50 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.io.IOException;
+import java.nio.file.InvalidPathException;
+
 
 public class Signer {
 
     static PrivateKey privatekey = null;
     static Map<String,PublicKey> publicKeys= new HashMap<>();
 
-    static void loadPublicKeyFromFile(String name) throws Exception {
-        String fileName = name+"Pub.key";
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PublicKey pubk = keyFactory.generatePublic(spec);
+    static PublicKey loadPublicKeyFromFile(String name, boolean save) throws Exception {
+        PublicKey pubk=null;
+        
+        try{
+            String fileName = name+"Pub.key";
+            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            pubk = keyFactory.generatePublic(spec);
 
-        publicKeys.put(name, pubk);
+            if(save)
+                publicKeys.put(name, pubk);
+            
+        }catch(IOException | SecurityException  |InvalidPathException e){
+            e.printStackTrace();
+        }
+        return pubk;
+        
+        
+        
     }
 
     static void loadPrivateKeyFromFile(String name) throws Exception {
-        String fileName = name+"Priv.key";
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+        try{
+            String fileName = name+"Priv.key";
+            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
 
-        privatekey = rsaPrivateKey;
+            privatekey = rsaPrivateKey;
+        }catch(IOException | SecurityException  |InvalidPathException e){
+            e.printStackTrace();
+        }
+        
     }
 
     static byte[] sign(String message) throws Exception{
@@ -134,6 +155,10 @@ public class Signer {
 
     public static void setPrivatekey(PrivateKey privKey) {
         privatekey = privKey;
+    }
+
+    public static PublicKey getPublicKey(String name){
+        return publicKeys.get(name);
     }
 }
 

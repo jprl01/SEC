@@ -4,6 +4,12 @@ import java.net.*;
 import java.util.*;
 import java.util.regex.PatternSyntaxException;
 import java.io.IOException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 
 
@@ -27,6 +33,7 @@ public class Server {
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
     
+    private static Map<String,Account> systemAccounts = new HashMap<>();
     
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
@@ -66,7 +73,7 @@ public class Server {
         Comunication.setNServers(nServers);
         // Load RSA keys from files
         for(int i=2;i< args.length;i++){
-            Signer.loadPublicKeyFromFile(args[i]);           
+            Signer.loadPublicKeyFromFile(args[i],true);           
              
             
 
@@ -569,7 +576,7 @@ public class Server {
     private static void parseCommand (String command) throws Exception{
         //2_1_Joao_1_adeus
         
-        System.out.println("deciding command "+command);
+        System.out.println("deciding block "+command);
         String[] tokens;
         
         try{
@@ -584,32 +591,57 @@ public class Server {
         String transactions[]=command.split(" ");
 
         for(int i=0;i<BLOCK_SIZE;i++){
-            
+            String state;
             try{
                 
                 tokens= transactions[i].split("_");
+                
             }
             catch(PatternSyntaxException e){
                 System.out.println("Message format is incorret. Message will be ignored.");
                 continue;
             }
-
             String client=tokens[2];
-            String exec=tokens[4].split("\n")[0];
+            String type=tokens[4];
             String idRequest=tokens[3];
+            
+            
 
-            if(clientsChain.containsKey(client)){
-                clientsChain.get(client).add(exec);
+            if(type.equals("CreateAccount")){
+                String initialBalance=tokens[6].split("\n")[0];
+
+                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey publicKey = keyFactory.generatePublic(keySpec);
+
+                if(Signer.getPublicKey(client).equals(publicKey)){
+                    if(Integer.parseInt(initialBalance)>=0){
+                        Account account= new Account(publicKey,client,initialBalance);
+                        systemAccounts.put(client,account);
+                        state="_ACK_";
+                    }else{
+                        state="_NACK_";
+                    }
+                }else{
+                    state="_NACK_";
+                }
+            }else{
+                state="_NACK_";
+            }
+            System.out.println("account "+systemAccounts.get(client).getValue());
+            /*if(clientsChain.containsKey(client)){
+                clientsChain.get(client).add(type);
                 
             }else{
                 
                 clientsChain.put(client, new ArrayList<>());
-                clientsChain.get(client).add(exec);
+                clientsChain.get(client).add(type);
                 
-            }
+            }*/
             
             String clientSource[]=clientsSource.get(client+idRequest).split("_");
-            String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest;
+            String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
 
             System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
             

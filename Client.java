@@ -2,7 +2,7 @@ import java.net.*;
 
 
 import java.util.*;
-
+import java.security.PublicKey;
 
 import java.util.Scanner;
 import java.util.regex.PatternSyntaxException;
@@ -36,7 +36,7 @@ public class Client {
         
         String[] ports = new String[args.length-2];
         for(int i=2;i< args.length;i++){
-            Signer.loadPublicKeyFromFile(args[i]);   
+            Signer.loadPublicKeyFromFile(args[i],true);   
             ports[i-2]=args[i];
 
             if(clientName.equals(args[i])){
@@ -55,14 +55,18 @@ public class Client {
         
         while(true){
             String message;
-            System.out.println("Type something to server");
+            System.out.println("\nPlease, request an available option:\n");
+            System.out.print("CreateAccount_PubKey_initial Balance.\n");
+            System.out.print("CheckBalance_PubKey.\n");
+            System.out.print("Transfer_Source pubKey_Destination pubKey_Ammount.\n");
+            System.out.print("Exit.\n");
             String command= myObj.nextLine();
 
-            
-            //if(!parseCommand(command)){
-             //   continue;
-            //}
-            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
+            String request=parseCommand(command);
+            if(request==null){
+               continue;
+            }
+            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + request;
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
@@ -91,31 +95,70 @@ public class Client {
         
     }
 
-    private static boolean parseCommand(String command) throws Exception{
+    private static String parseCommand(String command) throws Exception{
         String[] tokens;
         try{
-            tokens= command.split(" ");
+            tokens= command.split("_");
         }
         catch(PatternSyntaxException e){
             System.out.println("Message format is incorret. Message will be ignored.");
-            return false;
+            return null;
         }
-        if(tokens[0].equals("transfer")){
-            if(Integer.parseInt(tokens[3])<=0){
-
-                return false;
+        if(tokens[0].equals("CreateAccount")){
+            if(tokens.length!=3){
+                System.out.println("CreateAccount needs 3 arguments");
+                return null;
             }
-        }else if(tokens[0].equals("createAccount")){
+                
+            PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
+            String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
+            //initial balance
+            if(Integer.parseInt(tokens[2])<=0){
+                System.out.println("CreateAccount needs a positive initial balance");
+                return null;
+            }
+            return tokens[0]+"_"+publicKeyString+"_"+tokens[2];
+           
+
+        }else if(tokens[0].equals("Transfer")){
+            if(tokens.length!=4){
+                System.out.println("Transfer needs 4 arguments");
+                return null;
+            }
+            PublicKey pubSourceKey=Signer.loadPublicKeyFromFile(tokens[1],false);
+            PublicKey pubDestKey=Signer.loadPublicKeyFromFile(tokens[2],false);
+
+            String publicSourceString = Base64.getEncoder().encodeToString(pubSourceKey.getEncoded());
+            String publicDestString = Base64.getEncoder().encodeToString(pubDestKey.getEncoded());
+
+            if(Integer.parseInt(tokens[3])<=0){
+                System.out.println("Transfer needs a positive ammount to be transfered");
+                return null;
+            }
+
+            return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+tokens[3];
+                
             
-        }else if(tokens[0].equals("checkBalance")){
+        }else if(tokens[0].equals("CheckBalance")){
+            if(tokens.length!=2){
+                System.out.println("CheckBalance needs 2 arguments");
+                return null;
+            }
+
+            PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
+            String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
+
+            return tokens[0]+"_"+publicKeyString;
             
         }else{
-            System.out.println("Invalid command");
-            return false;
+            System.out.println("Unknown command");
+            return null;
         }
 
-        return true;
+        //return command;
     }
+    
+    
 
        
 

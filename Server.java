@@ -157,24 +157,7 @@ public class Server {
             return;
         }
 
-        /*
-         * 
-         * 
-         */
-        if(tokens[1].equals("OpenAccount")){
-            //tokens[2] = client name
-            //tokens[3] = amount
-            serverManagement.createAccount(tokens[1], tokens[2]);
-        }
-        if(tokens[1].equals("checkBalance")){
-            //tokens[1] = client name
-            //tokens[2] = amount
-            System.out.println("Value: " + serverManagement.checkBalance("clientPublicKey"));
-        }
-        /*
-         * 
-         * 
-         */
+
         
     
         if(tokens[1].equals("Client")){
@@ -191,6 +174,27 @@ public class Server {
                     System.out.println(" comando certo");
                     
                 }
+
+                /*
+                * 
+                * 
+                */
+                if(tokens[4].equals("OpenAccount")){
+                    //tokens[1] = client name
+                    //tokens[5] = amount
+                    //tokens[6] = client public key
+                    System.out.println("Mensagem no openAccount: " + receivedMessage);
+                    serverManagement.createAccount(tokens[1], tokens[5], tokens[6].getBytes());
+                }
+                if(tokens[4].equals("checkBalance")){
+                    //tokens[1] = client name
+                    //tokens[2] = amount
+                    System.out.println("Value: " + serverManagement.checkBalance(tokens[6].getBytes()));
+                }
+                /*
+                * 
+                * 
+                */
 
                 if(consensus_started){  
 

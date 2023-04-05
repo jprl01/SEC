@@ -1,11 +1,11 @@
 public class Account {
     
-        private String publicKey; 
-        public String getPublicKey() {
+        private byte[] publicKey; 
+        public byte[] getPublicKey() {
             return publicKey;
         }
 
-        public void setPublicKey(String publicKey) {
+        public void setPublicKey(byte[] publicKey) {
             this.publicKey = publicKey;
         }
 
@@ -28,7 +28,7 @@ public class Account {
             this.value = value;
         }
 
-        public Account(String publicKey, String clientName, String value) {
+        public Account(byte[] publicKey, String clientName, String value) {
             this.publicKey = publicKey;
             this.clientName = clientName;
             this.value = Integer.parseInt(value);

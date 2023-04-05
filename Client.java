@@ -1,10 +1,8 @@
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.net.*;
-
-
+import java.security.PublicKey;
 import java.util.*;
-
-
-import java.util.Scanner;
 import java.util.regex.PatternSyntaxException;
 
 
@@ -156,8 +154,29 @@ public class Client {
         } 
     }
 
+    private static byte[] getClientPublicKey(String clientName){
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream out = null; 
+        PublicKey clientpk = Signer.getPublicKey(clientName);
+        byte[] byteArray = "".getBytes();
+        try {
+            out = new ObjectOutputStream(bos); 
+            out.writeObject(clientpk);
+            out.flush(); 
+            byteArray = bos.toByteArray();
+            bos.close();
+            return byteArray;
+        } catch(Exception e) {
+            System.out.println("CryptoTools - Error at convertToBytes: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     private static void openAccount(int initialAmount, String[] ports) {
-        String openAccountMessage = "OpenAccount" + "_" + clientName + "_" + initialAmount;
+        // message ="Client_"+ clientName + '_' +  (messageId++) + '_' + command;
+        byte[] clientPublicKey = getClientPublicKey(clientName);
+        String openAccountMessage = "Client_"+ clientName + '_' +  (messageId++) + '_' + "OpenAccount" + "_" +  initialAmount + "_" + clientPublicKey;
         Thread thread = new Thread(new Runnable()  {
             public void run()  {
                 try{
@@ -175,13 +194,15 @@ public class Client {
     }
 
     private static void checkBalance(String[] ports) {
-        String openAccountMessage = "CheckBalance";
+        byte[] clientPublicKey = getClientPublicKey(clientName);
+
+        String checkBalanceMessage = "Client_"+ clientName + '_' +  (messageId++) + '_' + "CheckBalance" + clientPublicKey;
         Thread thread = new Thread(new Runnable()  {
             public void run()  {
                 try{
                     
                     
-                    broadcast(openAccountMessage,ports);
+                    broadcast(checkBalanceMessage,ports);
                     
                 }catch(Exception e){
                     System.out.println(e.getMessage());

@@ -26,6 +26,10 @@ public class Signer {
         publicKeys.put(name, pubk);
     }
 
+    static PublicKey getPublicKey(String name){
+        return publicKeys.get(name);
+    }
+
     static void loadPrivateKeyFromFile(String name) throws Exception {
         String fileName = name+"Priv.key";
         byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
@@ -73,7 +77,7 @@ public class Signer {
         System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
+        // System.out.println("Received message: "+str);
 
         String[] tokens= str.split("_");
         if(tokens[1].equals("Client"))

@@ -1,44 +1,41 @@
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.nio.charset.StandardCharsets;
+package Tests;
+import java.net.*;
+import java.security.*;
+
+import java.util.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.KeyFactory;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
 
-public class FakeSignClient {
+import java.util.Scanner; 
+import java.nio.charset.StandardCharsets;
+
+public class CorrectOrderClient {
 
     
     private static int nounce=1000;
     private static Map<String,PublicKey> publicKeys= new HashMap<>();
     
     
-    private static int messageId=0;
+    private static int messageId=2;
     private static String clientName;
     
     private static int nServers;
     
     private static PrivateKey privateKey;
-    private static PrivateKey fakeKey;
     private static final Object lock = new Object();
     private static int neededResponses=0;
     private static int faults=1;
     private static int quorum;
     public static void main(String[] args) throws Exception {
-        fakeKey = loadPrivateKeyFromFile("priv.key");
         quorum=faults+1;
         clientName=args[0];
         nServers=Integer.parseInt(args[1]);
         String[] ports = new String[args.length-2];
+
+        System.out.println("I am a client that sends messages with unordered ids, that are still processed correctly by the servers.");
+
         for(int i=2;i< args.length;i++){
             PublicKey pubKey;
             pubKey=loadPublicKeyFromFile(args[i]+"Pub.key");
@@ -63,7 +60,7 @@ public class FakeSignClient {
             String message;
             System.out.println("Type something to server");
             
-            message ="Client_"+ clientName + '_' +  (messageId++) + '_' + myObj.nextLine();
+            message ="Client_"+ clientName + '_' +  (messageId--) + '_' + myObj.nextLine();
             
             
             broadcast(message,ports);
@@ -98,7 +95,7 @@ public class FakeSignClient {
     private static byte[] sign(String message) throws Exception{
         byte[] messageBytes = message.getBytes();
         Signature dsaForSign = Signature.getInstance("SHA1withRSA");
-        dsaForSign.initSign(fakeKey);
+        dsaForSign.initSign(privateKey);
         dsaForSign.update(messageBytes);
         byte[] signature = dsaForSign.sign();
         

@@ -297,6 +297,9 @@ public class Client {
                     socket.send(confpacket);*/
                 }
                 System.out.println("ACKS received: " + portsAcks);
+                if(tokens.length == 5){
+                    System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                }
 
 
             } catch (SocketTimeoutException e) {

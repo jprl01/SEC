@@ -1,3 +1,4 @@
+package Tests;
 public class DuplicateMessagePuppetMaster {
     public static void main(String[] args) throws Exception {
         // Launch a new terminal window and execute a command in it

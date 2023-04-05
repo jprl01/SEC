@@ -173,6 +173,7 @@ public class Server {
             //System.out.println("ola "+receivedMessage);
             //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);
+            String clientName = tokens[2];
             clientsSource.put(tokens[2]+idRequest,clientAddress.getHostAddress()+"_"+clientPort+"_"+tokens[0]);
             System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
                       
@@ -189,12 +190,10 @@ public class Server {
 
                     //verify if order is correct
                     if(leader){
-                                               
-                            
-                        queue.add(receivedMessage);
+                        if(!tokens[4].equals("CheckBalance")){
+                            queue.add(receivedMessage);
+                        }
                     }
-                    
-
                     return;
                 }
                 if(leader){
@@ -202,29 +201,62 @@ public class Server {
                 }
                 
                 
-            }                     
+            }       
+            
+            if(tokens[4].equals("CheckBalance")){
+                Integer value = systemAccounts.get(tokens[2]).getValue();
+                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);
+                            
+
+                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest + "_" + value;
+    
+                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+                
+                byte[] sendData = Signer.sign(response);
+                sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                serverSocket.send(sendPacket);
+            }
+
             
             if(leader){
                 
+                System.out.println("\n\n\n\nAntes de adicionar à queue, mensagem é:\n");
+                System.out.println(receivedMessage);  
+                // receivedMessage = 1001_Client_Joao_0_CreateAccount_MIIC...
                 
-                //command=str.substring(tokens[0].length()+tokens[1].length()+2);
+                //ifcreate or transfer
+                if(!tokens[4].equals("CheckBalance")){
+                    //command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
-                queue.add(receivedMessage);
-                //Signer.sign(receivedMessage);
+                    queue.add(receivedMessage);
+                    //Signer.sign(receivedMessage);
 
-                System.out.println("queue "+queue.size());
-                if(queue.size()==BLOCK_SIZE){
-                    //consensus_started=true;
-                    sendBlock();
-                }
-                else{
-                    consensus_started=false;
-                }
-                
-                
+                    System.out.println("queue "+queue.size());
+                    if(queue.size()==BLOCK_SIZE){
+                        //consensus_started=true;
+                        sendBlock();
+                    }
+                    else{
+                        consensus_started=false;
+                    }
+                } 
+                // else{
+                //     Integer value = systemAccounts.get(tokens[2]).getValue();
+                //     System.out.println("Client " + tokens[2] + " has this value in the account: " + value);
+                                
+
+                //     String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
+                //     String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest;
+        
+                //     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+                    
+                //     byte[] sendData = Signer.sign(response);
+                //     sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                //     serverSocket.send(sendPacket);
+                // }               
             }
-
-     
+   
             
         }else{
 
@@ -601,6 +633,10 @@ public class Server {
                 System.out.println("Message format is incorret. Message will be ignored.");
                 continue;
             }
+            System.out.println("\n\n\n\n\n###########################");
+            System.out.println(transactions[i]);
+            System.out.println("###########################\n\n\n\n\n");
+
             String client=tokens[2];
             String type=tokens[4];
             String idRequest=tokens[3];

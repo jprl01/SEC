@@ -101,7 +101,7 @@ public class Comunication {
                 
                 if(Integer.parseInt(tokens[1])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
-                    //continue;
+                    continue;
                 }
                 else{
                     System.out.println("Response Ok");

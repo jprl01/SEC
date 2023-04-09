@@ -64,6 +64,7 @@ public class Server {
         // nServers >= 3 * faults + 1;
         faults = (nServers  - 1)/3;
         byznatineQuorum=2*faults+1;
+        
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
@@ -71,12 +72,10 @@ public class Server {
 
         Comunication.setServerPort(SERVER_PORT);
         Comunication.setNServers(nServers);
+        
         // Load RSA keys from files
         for(int i=2;i< args.length;i++){
-            Signer.loadPublicKeyFromFile(args[i],true);           
-             
-            
-
+            Signer.loadPublicKeyFromFile(args[i],true);
             if(args[1].equals(args[i])){
                 Signer.loadPrivateKeyFromFile(args[1]);
             }
@@ -147,7 +146,7 @@ public class Server {
         
 
         String str = Signer.verifySign(receivedMessage.getBytes());
-        //System.out.println("olaaa "+str);
+        
         try{
             tokens= str.split("_");
         }
@@ -156,6 +155,7 @@ public class Server {
             return;
         }
         
+        //signature false
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
@@ -169,8 +169,9 @@ public class Server {
         System.out.println("%%%%%%%%%%%%%%%%");
         System.out.println(str.split("\n")[0]);
         System.out.println("%%%%%%%%%%%%%%%%");
+
         if(tokens[1].equals("Client")){
-            //System.out.println("ola "+receivedMessage);
+            
             //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);
             String clientName = tokens[2];
@@ -178,6 +179,8 @@ public class Server {
             System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
                       
             synchronized(lock){
+
+                //verify Id
                 if(!processIdRequest(tokens[2], idRequest)){
                     System.out.println(" comando errado");
                     return;
@@ -188,7 +191,7 @@ public class Server {
 
                 if(consensus_started){  
 
-                    //verify if order is correct
+                    
                     if(leader){
                         if(!tokens[4].equals("CheckBalance")){
                             queue.add(receivedMessage);
@@ -203,6 +206,7 @@ public class Server {
                 
             }       
             
+
             if(tokens[4].equals("CheckBalance")){
                 Integer value = systemAccounts.get(tokens[2]).getValue();
                 System.out.println("Client " + tokens[2] + " has this value in the account: " + value);
@@ -216,6 +220,7 @@ public class Server {
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
+                return;
             }
 
             
@@ -225,44 +230,26 @@ public class Server {
                 System.out.println(receivedMessage);  
                 // receivedMessage = 1001_Client_Joao_0_CreateAccount_MIIC...
                 
-                //ifcreate or transfer
-                if(!tokens[4].equals("CheckBalance")){
-                    //command=str.substring(tokens[0].length()+tokens[1].length()+2);
                 
-                    queue.add(receivedMessage);
-                    //Signer.sign(receivedMessage);
+                
+                queue.add(receivedMessage);
+                
 
-                    System.out.println("queue "+queue.size());
-                    if(queue.size()==BLOCK_SIZE){
-                        //consensus_started=true;
-                        sendBlock();
-                    }
-                    else{
-                        consensus_started=false;
-                    }
-                } 
-                // else{
-                //     Integer value = systemAccounts.get(tokens[2]).getValue();
-                //     System.out.println("Client " + tokens[2] + " has this value in the account: " + value);
-                                
-
-                //     String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                //     String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest;
-        
-                //     System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+                System.out.println("queue "+queue.size());
+                if(queue.size()==BLOCK_SIZE){
                     
-                //     byte[] sendData = Signer.sign(response);
-                //     sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
-                //     serverSocket.send(sendPacket);
-                // }               
+                    sendBlock();
+                }
+                else{
+                    consensus_started=false;
+                }
             }
+                
    
             
         }else{
 
-            /*if(!tokens[4].equals(String.valueOf(consensus_instance))){
-                return;
-            }*/
+            
             synchronized(lockServers){
                 if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
                     System.out.println("duplicated message");
@@ -351,8 +338,7 @@ public class Server {
                     int i=1;
                     String block;
                     String request=queue.poll();
-                    //String tokens[]=request.split("_");
-                    //block=request.substring(tokens[0].length()+tokens[1].length()+2);
+                    
                     block=request;
 
                     while(!queue.isEmpty() ){
@@ -360,8 +346,7 @@ public class Server {
                             break;
                         }
                         request=queue.poll();
-                        //tokens=request.split("_");
-                        //block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
+                        
                         block+=" "+request;
                         i++;
                         
@@ -475,7 +460,7 @@ public class Server {
                     consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
                     if(requests>byznatineQuorum){
                         System.out.println("prepare extra");
-                        Comunication.sendMessage(commit, String.valueOf(socketPort), broadcastId, "-1");
+                        Comunication.sendMessage(commit, String.valueOf(socketPort), broadcastId, nounceR);
                         return;
                     }
                     
@@ -492,7 +477,7 @@ public class Server {
                 }
             }
             if(broadcast){
-                Comunication.broadcast(commit, sourcePrep,false,false,null,"-1");
+                Comunication.broadcast(commit, sourcePrep,false,false,null,nounceR);
                 
             }
                 
@@ -607,7 +592,7 @@ public class Server {
 
     private static void parseCommand (String command) throws Exception{
         //2_1_Joao_1_adeus
-        
+        String state="_NACK_";
         System.out.println("deciding block "+command);
         String[] tokens;
         
@@ -623,7 +608,7 @@ public class Server {
         String transactions[]=command.split(" ");
 
         for(int i=0;i<BLOCK_SIZE;i++){
-            String state;
+            state="_NACK_";
             try{
                 
                 tokens= transactions[i].split("_");
@@ -652,29 +637,15 @@ public class Server {
                 PublicKey publicKey = keyFactory.generatePublic(keySpec);
 
                 if(Signer.getPublicKey(client).equals(publicKey)){
-                    if(Integer.parseInt(initialBalance)>=0){
+                    if(Integer.parseInt(initialBalance)>=0 && !systemAccounts.containsKey(client)){
                         Account account= new Account(publicKey,client,initialBalance);
                         systemAccounts.put(client,account);
                         state="_ACK_";
-                    }else{
-                        state="_NACK_";
                     }
-                }else{
-                    state="_NACK_";
                 }
-            }else{
-                state="_NACK_";
             }
             System.out.println("account "+systemAccounts.get(client).getValue());
-            /*if(clientsChain.containsKey(client)){
-                clientsChain.get(client).add(type);
-                
-            }else{
-                
-                clientsChain.put(client, new ArrayList<>());
-                clientsChain.get(client).add(type);
-                
-            }*/
+            
             
             String clientSource[]=clientsSource.get(client+idRequest).split("_");
             String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;

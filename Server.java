@@ -15,7 +15,7 @@ import java.security.PublicKey;
 
 public class Server {
 
-    private static final int BLOCK_SIZE=1;
+    private static final int BLOCK_SIZE=3;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -27,7 +27,7 @@ public class Server {
     private static int round=1;
     private static Queue<String> queue = new LinkedList<>();
     private static Map<String, Integer> idRequests = new HashMap<>();
-    private static Map<String, List<String>> clientsChain = new HashMap<>();
+    
     private static Map<String,String> clientsSource = new HashMap<>();
     
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
@@ -660,11 +660,14 @@ public class Server {
         
         
         
-        System.out.println("Map of lists: " + clientsChain);
+        //System.out.println("Map of lists: " + clientsChain);
     }
 
     public static void setBroadcastId(int id){
         broadcastId=id;
+    }
+    public static int getLowestPort(){
+        return lowestPort;
     }
 
     

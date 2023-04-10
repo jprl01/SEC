@@ -52,13 +52,13 @@ public class Client {
         // Create a DatagramSocket
         //DatagramSocket socket = new DatagramSocket();
         
-        
+        System.out.println("Welcome " + args[0] + "!\n");
         while(true){
             String message;
             System.out.println("\nPlease, request an available option:\n");
             System.out.print("CreateAccount_PubKey_initial Balance.\n");
             System.out.print("CheckBalance_PubKey.\n");
-            System.out.print("Transfer_Source pubKey_Destination pubKey_Ammount.\n");
+            System.out.print("Transfer_SourcePubKey_DestinationPubKey_Amount.\n");
             System.out.print("Exit.\n");
             String command= myObj.nextLine();
 
@@ -136,7 +136,7 @@ public class Client {
                 return null;
             }
 
-            return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+tokens[3];
+            return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+tokens[3] + "_"+tokens[2];
                 
             
         }else if(tokens[0].equals("CheckBalance")){

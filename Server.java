@@ -319,7 +319,7 @@ public class Server {
                 
             }                            
             else{
-                System.out.println(" comando errado");
+                System.out.println(" comando errado - nao e este id request o esperado");
                 
                 return false;
             }
@@ -333,7 +333,7 @@ public class Server {
             
         }
         else{
-            System.out.println(" comando errado");
+            System.out.println(" comando errado - nao conhece cliente");
             
             return false;
         }
@@ -655,6 +655,40 @@ public class Server {
                     if(Integer.parseInt(initialBalance)>=0){
                         Account account= new Account(publicKey,client,initialBalance);
                         systemAccounts.put(client,account);
+                        state="_ACK_";
+                    }else{
+                        state="_NACK_";
+                    }
+                }else{
+                    state="_NACK_";
+                }
+            }else{
+                state="_NACK_";
+            }
+            if(type.equals("Transfer")){
+                String amountToTransfer=tokens[7].split("\n")[0];
+
+                // source client
+                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey sourcePublicKey = keyFactory.generatePublic(keySpec);
+                
+                //destination client
+                publicKeyBytes = Base64.getDecoder().decode(tokens[6]);
+                keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey destinationPublicKey = keyFactory.generatePublic(keySpec);
+                String destinationName = tokens[8];
+
+                if(Signer.getPublicKey(client).equals(sourcePublicKey)){
+                    if(Integer.parseInt(amountToTransfer)>=0){
+                        // Account account= new Account(sourcePublicKey,client,initialBalance);
+                        // systemAccounts.put(client,account);
+                        Account sourceAccount = systemAccounts.get(client);
+                        sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer));
+                        Account destinatiAccount = systemAccounts.get(destinationName);
+                        sourceAccount.setValue(destinatiAccount.getValue()+Integer.parseInt(amountToTransfer));
                         state="_ACK_";
                     }else{
                         state="_NACK_";

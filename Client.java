@@ -252,22 +252,25 @@ public class Client {
 
                 // tokens[3] = consensus instance
                 synchronized(lock){
-                    if(portsAcks.containsKey(tokens[3])){
-                        //vSystem.out.println("HERE");
-                        List<String> acksReceived = portsAcks.get(tokens[3]);
-                        // tokens[0] = server port
-                        if(acksReceived.contains(tokens[0])){
-                            System.out.println("The Server " + tokens[0] + " has already sent an ACK for request " + tokens[3]);
-                        }
-                        else{
+                    if(tokens[2].equals("ACK")){
+
+                        if(portsAcks.containsKey(tokens[3])){
+                            //vSystem.out.println("HERE");
+                            List<String> acksReceived = portsAcks.get(tokens[3]);
+                            // tokens[0] = server port
+                            if(acksReceived.contains(tokens[0])){
+                                System.out.println("The Server " + tokens[0] + " has already sent an ACK for request " + tokens[3]);
+                            }
+                            else{
+                                portsAcks.get(tokens[3]).add(tokens[0]);
+                                noDupliactedPort = true;
+                            }
+                            
+                        }else{
+                            portsAcks.put(tokens[3], new ArrayList<>());
                             portsAcks.get(tokens[3]).add(tokens[0]);
-                            noDupliactedPort = true;
+                            noDupliactedPort = true;                    
                         }
-                        
-                    }else{
-                        portsAcks.put(tokens[3], new ArrayList<>());
-                        portsAcks.get(tokens[3]).add(tokens[0]);
-                        noDupliactedPort = true;                    
                     }
                 }
                 

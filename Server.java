@@ -65,6 +65,7 @@ public class Server {
         faults = (nServers  - 1)/3;
         byznatineQuorum=2*faults+1;
         SERVER_PORT=Integer.parseInt(args[1]);
+        System.out.println("My port is: " + SERVER_PORT);
         lowestPort=Integer.parseInt(args[2]);
          ports = new String[args.length-2];        
         
@@ -640,6 +641,9 @@ public class Server {
             String client=tokens[2];
             String type=tokens[4];
             String idRequest=tokens[3];
+
+            System.out.println("\n\n\n\n\n$$$$$");
+            System.out.println("Type: " + type);
             
             
 
@@ -657,15 +661,13 @@ public class Server {
                         systemAccounts.put(client,account);
                         state="_ACK_";
                     }else{
-                        state="_NACK_";
+                        state="_NACK1_";
                     }
                 }else{
-                    state="_NACK_";
+                    state="_NACK2_";
                 }
-            }else{
-                state="_NACK_";
             }
-            if(type.equals("Transfer")){
+            else if(type.equals("Transfer")){
                 String amountToTransfer=tokens[7].split("\n")[0];
 
                 // source client
@@ -691,13 +693,13 @@ public class Server {
                         sourceAccount.setValue(destinatiAccount.getValue()+Integer.parseInt(amountToTransfer));
                         state="_ACK_";
                     }else{
-                        state="_NACK_";
+                        state="_NACK4_";
                     }
                 }else{
-                    state="_NACK_";
+                    state="_NACK5_";
                 }
             }else{
-                state="_NACK_";
+                state="_NACK6_";
             }
             System.out.println("account "+systemAccounts.get(client).getValue());
             /*if(clientsChain.containsKey(client)){

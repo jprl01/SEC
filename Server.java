@@ -16,6 +16,8 @@ import java.security.PublicKey;
 public class Server {
 
     private static final int BLOCK_SIZE=1;
+    private static final int FEE=2;
+
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -89,6 +91,9 @@ public class Server {
         if(lowestPort==SERVER_PORT){
             leader=true;
             System.out.println("I am the leader server.");
+            PublicKey leaderPublicKey = Signer.getPublicKey("1234");
+            Account account= new Account(leaderPublicKey, "Leader", "0");
+            systemAccounts.put("Leader",account);
         } 
 
         
@@ -170,6 +175,7 @@ public class Server {
         System.out.println("%%%%%%%%%%%%%%%%");
         System.out.println(str.split("\n")[0]);
         System.out.println("%%%%%%%%%%%%%%%%");
+
         if(tokens[1].equals("Client")){
             //System.out.println("ola "+receivedMessage);
             //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
@@ -330,11 +336,15 @@ public class Server {
             System.out.println("comando certo");
             
             idRequests.put(client,idRequest+1);
+
+            System.out.println("\n\n\n\n\n\n\n\nPara o cliente " + client + " aumentou o valor do id esperado para " + idRequests.get(client));
             
             
         }
         else{
-            System.out.println(" comando errado - nao conhece cliente");
+            System.out.println(" comando errado - id diferente do esperado");
+            System.out.println("Id esperado e: " + idRequests.get(client));
+            System.out.println("Id recebido e: " + idRequest);
             
             return false;
         }
@@ -685,12 +695,19 @@ public class Server {
 
                 if(Signer.getPublicKey(client).equals(sourcePublicKey)){
                     if(Integer.parseInt(amountToTransfer)>=0){
-                        // Account account= new Account(sourcePublicKey,client,initialBalance);
-                        // systemAccounts.put(client,account);
+
                         Account sourceAccount = systemAccounts.get(client);
-                        sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer));
+                        sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
+
                         Account destinatiAccount = systemAccounts.get(destinationName);
                         sourceAccount.setValue(destinatiAccount.getValue()+Integer.parseInt(amountToTransfer));
+
+                        //paying fee to the leader
+                        Account leaderAccount = systemAccounts.get("Leader");
+                        sourceAccount.setValue(leaderAccount.getValue()+ FEE);
+
+
+
                         state="_ACK_";
                     }else{
                         state="_NACK4_";

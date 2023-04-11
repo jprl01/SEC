@@ -46,7 +46,7 @@ public class Comunication {
             socket.send(packet);
             
             
-            
+            System.out.println("Sending again.......................................");
             
             // Create a packet to receive the response from the server
             byte[] receiveData = new byte[65000];

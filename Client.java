@@ -67,6 +67,8 @@ public class Client {
                continue;
             }
             message ="Client_"+ clientName + '_' +  (messageId++) + '_' + request;
+            System.out.println("Proximo id a enviar: " + messageId);
+
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
@@ -213,7 +215,8 @@ public class Client {
         // Send the packet to the server
         socket.setSoTimeout(timeout);
         
-        
+        System.out.println("Mensagem a ser enviada:");
+        System.out.println(message);
         while (!responseReceived) {
             // Send the packet to the server
             socket.send(packet);

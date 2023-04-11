@@ -36,7 +36,8 @@ public class Server {
     private static Map<String, Integer> consensusValue = new HashMap<>();
     
     private static Map<String,Account> systemAccounts = new HashMap<>();
-    
+    private static Map<String,Account> provisorySystemAccounts = new HashMap<>();
+
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
@@ -171,10 +172,6 @@ public class Server {
             return;
         }
         
-        
-        System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(str.split("\n")[0]);
-        System.out.println("%%%%%%%%%%%%%%%%");
 
         if(tokens[1].equals("Client")){
             //System.out.println("ola "+receivedMessage);
@@ -360,12 +357,22 @@ public class Server {
             public void run()  {
                 try{
                     int i=1;
-                    String block;
+                    String block="";
                     String request=queue.poll();
                     //String tokens[]=request.split("_");
                     //block=request.substring(tokens[0].length()+tokens[1].length()+2);
-                    block=request;
 
+                    //se logo o primeiro request nao e valido, nada do bloco e feito
+                    if(checkIfRequestIsValid(request, block, i)){
+                        block=request;
+                    }
+                    else{
+                        //avisar o cliente de que transacao nao foi feita
+                        return;
+                    }
+
+
+                    //Request: 1002_Client_Catarina_0_CreateAccount_MIICIj...
                     while(!queue.isEmpty() ){
                         if(i==BLOCK_SIZE){
                             break;
@@ -373,16 +380,22 @@ public class Server {
                         request=queue.poll();
                         //tokens=request.split("_");
                         //block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
-                        block+=" "+request;
                         i++;
+                        if(checkIfRequestIsValid(request, block, i)){
+                            block+=" "+request;
+                        }
+                        else{
+                            return;
+                        }
                         
                         
                             
                     }
                 
                     
-                    consensus(block,ports);
-                    
+                    if(block.length() != 0){
+                        consensus(block,ports);
+                    }
                     
                 }catch(Exception e){
                     System.out.println("erro");
@@ -396,6 +409,64 @@ public class Server {
         thread.start();
     }
 
+    private static boolean checkIfRequestIsValid(String request, String block, int i){
+        String[] tokens;
+        //if it is the first request for the block, only have to compare with current state of the blockchain
+        try{
+            tokens= request.split("_");
+            if(i == 1){
+                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nRequest:" + request);
+                System.out.println("\n\n\n\n\n\n Here");
+
+                    
+                    //if it is a create account request, we need to check if the public key sent corresponds to the one the server knwows
+                    //TODO
+
+                    //if it is a transaction, we need to make sure no balance < 0
+                    if(tokens[4].equals("Transfer")){
+                        String amountToTransfer=tokens[7].split("\n")[0];
+                        Account sourceAccount = systemAccounts.get(tokens[2]);
+                        boolean isValid = (sourceAccount.getValue() - Integer.parseInt(amountToTransfer) - FEE) >= 0;
+                        if(isValid){
+                            int provisoryAmount = sourceAccount.getValue() - Integer.parseInt(amountToTransfer);
+                            Account provisoryAccount = new Account(null, tokens[2], String.valueOf(provisoryAmount));
+                            provisorySystemAccounts.put(tokens[2], provisoryAccount);
+                        }
+                        System.out.println("Provisory amount: " + (sourceAccount.getValue() - Integer.parseInt(amountToTransfer) - FEE));
+                        System.out.println(("Is valid: " + isValid));
+                        return isValid;
+
+
+                    }
+                }
+
+
+            
+            // if it is not the first request to be added, we also need to compare with the state of the previous requets
+            else{
+                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nRequest:" + request);
+                System.out.println("\n\n\n\n\n\n Theere");
+                if(tokens[4].equals("Transfer")){
+                    String amountToTransfer=tokens[7].split("\n")[0];
+                    Account sourceAccount = provisorySystemAccounts.get(tokens[2]);
+                    boolean isValid = (sourceAccount.getValue() - Integer.parseInt(amountToTransfer) - FEE) >= 0;
+                    if(isValid){
+                        int provisoryAmount = sourceAccount.getValue() - Integer.parseInt(amountToTransfer);
+                        Account provisoryAccount = new Account(null, tokens[2], String.valueOf(provisoryAmount));
+                        provisorySystemAccounts.put(tokens[2], provisoryAccount);
+                    }
+                    return isValid;
+
+
+                }
+
+            }
+        }
+        catch(PatternSyntaxException e){
+            System.out.println("Message format is incorret. Message will be ignored.");
+        }
+        return true;
+    }
     
 
     private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort,String nounceR) throws Exception{

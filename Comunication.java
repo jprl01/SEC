@@ -147,7 +147,9 @@ public class Comunication {
                 break;
             }
             i++;
-            
+            if(send && port.equals(String.valueOf(SERVER_PORT))){
+                continue;
+            }
             if(leaderSent && port.equals(String.valueOf(Server.getLowestPort()))){
                 //System.out.println("testar broadcast prepare");
                 port=leaderPort;
@@ -179,6 +181,7 @@ public class Comunication {
     }
 
     public static void sendMessageClient(String message, String port) throws Exception{
+        int mult=1;
         int messageNounce;
         synchronized (lock) {
             messageNounce=nounce;
@@ -287,6 +290,8 @@ public class Comunication {
 
             } catch (SocketTimeoutException e) {
                 // If a timeout occurs, retry sending the message
+                mult++;
+                socket.setSoTimeout(timeout*mult);
                 System.out.println("Timeout occurred, retrying... to "+port+" message: "+message);
                 
                 

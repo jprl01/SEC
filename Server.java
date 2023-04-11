@@ -15,7 +15,7 @@ import java.security.PublicKey;
 
 public class Server {
 
-    private static final int BLOCK_SIZE=3;
+    private static final int BLOCK_SIZE=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -34,6 +34,7 @@ public class Server {
     private static Map<String, Integer> consensusValue = new HashMap<>();
     
     private static Map<String,Account> systemAccounts = new HashMap<>();
+    private static Map<String,String> snapshots = new HashMap<>();
     
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
@@ -419,7 +420,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            Comunication.broadcast(prepare,ports,true,leaderSent,String.valueOf(socketPort),nounceR);
+            Comunication.broadcast(prepare,ports,false,leaderSent,String.valueOf(socketPort),nounceR);
             
             
         }
@@ -574,7 +575,7 @@ public class Server {
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
 
-            Comunication.broadcast(start, ports,true,false,null,"-1");
+            Comunication.broadcast(start, ports,false,false,null,"-1");
             
             
         }
@@ -592,6 +593,7 @@ public class Server {
 
     private static void parseCommand (String command) throws Exception{
         //2_1_Joao_1_adeus
+        boolean invalid=false;
         String state="_NACK_";
         System.out.println("deciding block "+command);
         String[] tokens;
@@ -628,7 +630,7 @@ public class Server {
             
             
 
-            if(type.equals("CreateAccount")){
+            if(type.equals("CreateAccount") && !invalid){
                 String initialBalance=tokens[6].split("\n")[0];
 
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
@@ -641,21 +643,32 @@ public class Server {
                         Account account= new Account(publicKey,client,initialBalance);
                         systemAccounts.put(client,account);
                         state="_ACK_";
-                    }
-                }
+                    }else invalid=true;
+
+                }else invalid=true;
+
+                System.out.println("account "+systemAccounts.get(client).getValue());
+            }else{
+                invalid=true;
             }
-            System.out.println("account "+systemAccounts.get(client).getValue());
+            
             
             
             String clientSource[]=clientsSource.get(client+idRequest).split("_");
             String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
 
-            System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+            System.out.println("\n\n\n\nMessage sent to client : " + response);
             
             byte[] sendData = Signer.sign(response);
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
             serverSocket.send(sendPacket);
+
+            
+            
+
         }
+
+        //send signed state to other replicas
         
         
         

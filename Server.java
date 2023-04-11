@@ -356,46 +356,62 @@ public class Server {
             
             public void run()  {
                 try{
+                    String[] tokens;
                     int i=1;
                     String block="";
                     String request=queue.poll();
-                    //String tokens[]=request.split("_");
-                    //block=request.substring(tokens[0].length()+tokens[1].length()+2);
 
-                    //se logo o primeiro request nao e valido, nada do bloco e feito
-                    if(checkIfRequestIsValid(request, block, i)){
-                        block=request;
-                    }
-                    else{
-                        //avisar o cliente de que transacao nao foi feita
-                        return;
-                    }
+                    try{
+                        tokens= request.split("_");
+
+                        //String tokens[]=request.split("_");
+                        //block=request.substring(tokens[0].length()+tokens[1].length()+2);
+
+                        //se logo o primeiro request nao e valido, nada do bloco e feito
+                        // if(checkIfRequestIsValid(tokens, block, i)){
+                            block=request;
+                        // }
+                        // else{
+                        //     //avisar o cliente de que transacao nao foi feita
+                        //     String message = SERVER_PORT + "_" + tokens[0] + "_NACK_" + tokens[3];
+                        //     String clientSource[]=clientsSource.get(tokens[2]+tokens[3]).split("_");
+
+                        //     byte[] signedMessage = Signer.sign(message);
+                        //     DatagramPacket sendPacket = new DatagramPacket(signedMessage, signedMessage.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                        //     serverSocket.send(sendPacket);
+                        //     return;
+                        // }
 
 
-                    //Request: 1002_Client_Catarina_0_CreateAccount_MIICIj...
-                    while(!queue.isEmpty() ){
-                        if(i==BLOCK_SIZE){
-                            break;
-                        }
-                        request=queue.poll();
-                        //tokens=request.split("_");
-                        //block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
-                        i++;
-                        if(checkIfRequestIsValid(request, block, i)){
-                            block+=" "+request;
-                        }
-                        else{
-                            return;
-                        }
-                        
-                        
+                        //Request: 1002_Client_Catarina_0_CreateAccount_MIICIj...
+                        while(!queue.isEmpty() ){
+                            if(i==BLOCK_SIZE){
+                                break;
+                            }
+                            request=queue.poll();
+                            //tokens=request.split("_");
+                            //block+=" "+request.substring(tokens[0].length()+tokens[1].length()+2);
+                            i++;
+                            // if(checkIfRequestIsValid(tokens, block, i)){
+                                block+=" "+request;
+                            // }
+                            // else{
+                            //     return;
+                            // }
                             
-                    }
-                
+                            
+                                
+                        }
                     
-                    if(block.length() != 0){
-                        consensus(block,ports);
+                        
+                        // if(block.length() != 0){
+                            consensus(block,ports);
+                        // }
                     }
+                    catch(PatternSyntaxException e){
+                        System.out.println("Message format is incorret. Message will be ignored.");
+                    }
+
                     
                 }catch(Exception e){
                     System.out.println("erro");
@@ -409,13 +425,11 @@ public class Server {
         thread.start();
     }
 
-    private static boolean checkIfRequestIsValid(String request, String block, int i){
-        String[] tokens;
+    private static boolean checkIfRequestIsValid(String[] tokens, String block, int i){
         //if it is the first request for the block, only have to compare with current state of the blockchain
-        try{
-            tokens= request.split("_");
+
             if(i == 1){
-                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nRequest:" + request);
+                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nRequest:" + tokens[0]+"_"+tokens[1]+"_"+tokens[2]);
                 System.out.println("\n\n\n\n\n\n Here");
 
                     
@@ -444,7 +458,7 @@ public class Server {
             
             // if it is not the first request to be added, we also need to compare with the state of the previous requets
             else{
-                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nRequest:" + request);
+                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\nRequest:" + tokens[0]+"_"+tokens[1]+"_"+tokens[2]);
                 System.out.println("\n\n\n\n\n\n Theere");
                 if(tokens[4].equals("Transfer")){
                     String amountToTransfer=tokens[7].split("\n")[0];
@@ -461,10 +475,7 @@ public class Server {
                 }
 
             }
-        }
-        catch(PatternSyntaxException e){
-            System.out.println("Message format is incorret. Message will be ignored.");
-        }
+        
         return true;
     }
     
@@ -508,6 +519,19 @@ public class Server {
                     serverSocket.send(sendPacket);
                     return;
                         
+                }
+                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nTokens request before split: " + str+ "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                String[] tokensRequest = str.split("_");
+
+                if(!checkIfRequestIsValid(tokensRequest, block, i+1)){
+                    //avisar o cliente de que transacao nao foi feita
+                    String message = SERVER_PORT + "_" + tokensRequest[0] + "_NACK_" + tokensRequest[3];
+                    String clientSource[]=clientsSource.get(tokensRequest[2]+tokensRequest[3]).split("_");
+
+                    byte[] signedMessage = Signer.sign(message);
+                    DatagramPacket sendPacket = new DatagramPacket(signedMessage, signedMessage.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                    serverSocket.send(sendPacket);
+                    return;
                 }
                 
 

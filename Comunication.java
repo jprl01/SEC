@@ -14,6 +14,8 @@ public class Comunication {
     //for client-side
     private static Map<String, List<String>> portsAcks = new HashMap<>();
     private static int neededResponses=0;
+    private static int neededResponsesForNack=0;
+
     private static int quorum;
 
     public static void sendMessage(String message, String port, int id,String nounceR) throws Exception{
@@ -265,6 +267,10 @@ public class Comunication {
 
                 if(noDupliactedPort){
                     //System.out.println("nounce: "+tokens[1]+" expected: "+messageNounce+" port: "+socket.getLocalPort());
+                    
+                    System.out.println("Nounce recebido: " + tokens[1]);
+                    System.out.println(("Nounce esperado: " + messageNounce));
+
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
                         return;
@@ -277,6 +283,14 @@ public class Comunication {
                                 neededResponses=0;
                             }
                             System.out.println("Response Ok");                            
+                        }
+                        else if(tokens[2].equals("NACK")){
+                            neededResponsesForNack++;
+                            if(neededResponsesForNack>=quorum){
+                                System.out.println("Command "+message+ " was not applied");
+                                neededResponsesForNack=0;
+                            }
+                            System.out.println("Response NOk");                            
                         }
                     }                    
                     responseReceived = true;

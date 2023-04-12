@@ -16,6 +16,8 @@ import java.security.PublicKey;
 public class Server {
 
     private static final int BLOCK_SIZE=1;
+    private static final int FEE=2;
+
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -68,8 +70,10 @@ public class Server {
         
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
-         ports = new String[args.length-2];        
+        ports = new String[args.length-2];        
         
+        System.out.println("My port is: " + SERVER_PORT);
+
 
         Comunication.setServerPort(SERVER_PORT);
         Comunication.setNServers(nServers);
@@ -88,6 +92,9 @@ public class Server {
         if(lowestPort==SERVER_PORT){
             leader=true;
             System.out.println("I am the leader server.");
+            PublicKey leaderPublicKey = Signer.getPublicKey("1234");
+            Account account= new Account(leaderPublicKey, "Leader", "0");
+            systemAccounts.put("Leader",account);
         } 
 
         
@@ -166,10 +173,7 @@ public class Server {
             return;
         }
         
-        
-        System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(str.split("\n")[0]);
-        System.out.println("%%%%%%%%%%%%%%%%");
+    
 
         if(tokens[1].equals("Client")){
             
@@ -321,8 +325,9 @@ public class Server {
             
         }
         else{
-            System.out.println(" comando errado");
-            
+            System.out.println(" comando errado - id diferente do esperado");
+            System.out.println("Id esperado e: " + idRequests.get(client));
+            System.out.println("Id recebido e: " + idRequest);            
             return false;
         }
 
@@ -642,6 +647,62 @@ public class Server {
                     if(Integer.parseInt(initialBalance)>=0 && !systemAccounts.containsKey(client)){
                         Account account= new Account(publicKey,client,initialBalance);
                         systemAccounts.put(client,account);
+                        state="_ACK_";
+                    }else invalid=true;
+
+                }else invalid=true;
+
+                System.out.println("account "+systemAccounts.get(client).getValue());
+            }
+            else if(type.equals("Transfer") && !invalid){
+                System.out.println("\n\n\n\n\n\n\n\n\n Entrou no transfer!\n\n\n\n\n");
+                String amountToTransfer=tokens[7].split("\n")[0];
+                System.out.println("Amount to transfer: " + amountToTransfer);
+
+
+                // source client
+                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey sourcePublicKey = keyFactory.generatePublic(keySpec);
+
+                //destination client
+                publicKeyBytes = Base64.getDecoder().decode(tokens[6]);
+                keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey destinationPublicKey = keyFactory.generatePublic(keySpec);
+                String destinationName = Signer.getKey(destinationPublicKey);
+                System.out.println("Destination name: "+ destinationName);
+
+                if(Signer.getPublicKey(client).equals(sourcePublicKey)){
+                    System.out.println("1!");
+
+                    if(Integer.parseInt(amountToTransfer)>=0 && systemAccounts.containsKey(client) && systemAccounts.containsKey(destinationName)){
+                        System.out.println(" 2!");
+
+                        Account sourceAccount = systemAccounts.get(client);
+                        Integer sourceAccountValue = sourceAccount.getValue();
+
+                        if(sourceAccountValue >= (Integer.parseInt(amountToTransfer) + FEE)){
+                            System.out.println(" 3!");
+
+                            sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
+                            System.out.print("Client " + client + " has in account " + sourceAccount.getValue());
+    
+                            Account destinationAccount = systemAccounts.get(destinationName);
+                            destinationAccount.setValue(destinationAccount.getValue()+Integer.parseInt(amountToTransfer));
+                            System.out.print("Client " + destinationName + " has in account " + destinationAccount.getValue());
+
+    
+                            //paying fee to the leader
+                            Account leaderAccount = systemAccounts.get("Leader");
+                            sourceAccount.setValue(leaderAccount.getValue()+ FEE);
+                            System.out.println("\n\n\n\n\n\n\n\nFez transferencia!\n\n\n\n\n");
+
+                        }
+                        else invalid = true;
+
+
                         state="_ACK_";
                     }else invalid=true;
 

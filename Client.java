@@ -23,6 +23,7 @@ public class Client {
     
     private static final Object lock = new Object();
     private static int neededResponses=0;
+    private static int neededResponsesForNack=0;    
     private static int faults=1;
     private static int quorum;
     private static Map<String, List<String>> portsAcks = new HashMap<>();
@@ -255,7 +256,7 @@ public class Client {
 
                 // tokens[3] = consensus instance
                 synchronized(lock){
-                    if(tokens[2].equals("ACK")){
+                    if(tokens[2].equals("ACK") || tokens[2].equals("NACK") ){
 
                         if(portsAcks.containsKey(tokens[3])){
                             //vSystem.out.println("HERE");
@@ -280,6 +281,8 @@ public class Client {
 
                 if(noDupliactedPort){
                     //System.out.println("nounce: "+tokens[1]+" expected: "+messageNounce+" port: "+socket.getLocalPort());
+                    System.out.println("Nounce recebido: " + tokens[1]);
+                    System.out.println(("Nounce esperado: " + messageNounce));
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
                         return;
@@ -293,6 +296,14 @@ public class Client {
                             }
                             System.out.println("Response Ok");                            
                         }
+                        else if(tokens[2].equals("NACK")){
+                            neededResponsesForNack++;
+                            if(neededResponsesForNack>=quorum){
+                                System.out.println("Command "+message+ " was not applied");
+                                neededResponsesForNack=0;
+                            }
+                            System.out.println("Response NOk");                            
+                        }
                     }                    
                     responseReceived = true;
                     /*int confPort = receivePacket.getPort();           
@@ -301,6 +312,9 @@ public class Client {
                     byte[] confirmation=sign(Integer.parseInt(tokens[1])+"_ACK");
                     DatagramPacket confpacket = new DatagramPacket(confirmation, confirmation.length, confAddress, confPort);
                     socket.send(confpacket);*/
+                }
+                else{
+                    System.out.println("Duplicated port");
                 }
                 System.out.println("ACKS received: " + portsAcks);
                 if(tokens.length == 5){

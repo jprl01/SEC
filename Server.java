@@ -698,12 +698,11 @@ public class Server {
                             Account leaderAccount = systemAccounts.get("Leader");
                             sourceAccount.setValue(leaderAccount.getValue()+ FEE);
                             System.out.println("\n\n\n\n\n\n\n\nFez transferencia!\n\n\n\n\n");
+                            state="_ACK_";
 
-                        }
-                        else invalid = true;
+                        }else invalid = true;
 
 
-                        state="_ACK_";
                     }else invalid=true;
 
                 }else invalid=true;

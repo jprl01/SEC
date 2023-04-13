@@ -92,10 +92,10 @@ public class Server {
         if(lowestPort==SERVER_PORT){
             leader=true;
             System.out.println("I am the leader server.");
-            PublicKey leaderPublicKey = Signer.getPublicKey("1234");
-            Account account= new Account(leaderPublicKey, "Leader", "0");
-            systemAccounts.put("Leader",account);
         } 
+        PublicKey leaderPublicKey = Signer.getPublicKey("1234");
+        Account account= new Account(leaderPublicKey, "Leader", "0");
+        systemAccounts.put("Leader",account);
 
         
 
@@ -196,15 +196,21 @@ public class Server {
 
                 if(consensus_started){  
 
-                    
+                System.out.println("1");
                     if(leader){
+                        System.out.println("2");
+
                         if(!tokens[4].equals("CheckBalance")){
+                            System.out.println("3");
+
                             queue.add(receivedMessage);
                         }
                     }
                     return;
                 }
                 if(leader){
+                    System.out.println("4");
+
                     consensus_started=true;
                 }
                 
@@ -717,7 +723,7 @@ public class Server {
             String clientSource[]=clientsSource.get(client+idRequest).split("_");
             String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
 
-            System.out.println("\n\n\n\nMessage sent to client : " + response);
+            System.out.println("\n\n\n\nMessage sent to clienttt : " + response);
             
             byte[] sendData = Signer.sign(response);
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));

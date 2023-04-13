@@ -694,15 +694,19 @@ public class Server {
 
                             sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
                             System.out.print("Client " + client + " has in account " + sourceAccount.getValue());
-    
+                            systemAccounts.replace(client, sourceAccount);
+
                             Account destinationAccount = systemAccounts.get(destinationName);
                             destinationAccount.setValue(destinationAccount.getValue()+Integer.parseInt(amountToTransfer));
                             System.out.print("Client " + destinationName + " has in account " + destinationAccount.getValue());
+                            systemAccounts.replace(destinationName, destinationAccount);
 
     
                             //paying fee to the leader
                             Account leaderAccount = systemAccounts.get("Leader");
-                            sourceAccount.setValue(leaderAccount.getValue()+ FEE);
+                            leaderAccount.setValue(leaderAccount.getValue()+ FEE);
+                            systemAccounts.replace("Leader", leaderAccount);
+
                             System.out.println("\n\n\n\n\n\n\n\nFez transferencia!\n\n\n\n\n");
                             state="_ACK_";
 

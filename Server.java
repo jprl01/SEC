@@ -10,11 +10,12 @@ import java.util.Base64;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.nio.ByteBuffer;
 
 
 
 public class Server {
-
+    private static final String red = "\u001B[31m";
     private static final int BLOCK_SIZE=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
@@ -34,7 +35,8 @@ public class Server {
     private static Map<String, Integer> consensusValue = new HashMap<>();
     
     private static Map<String,Account> systemAccounts = new HashMap<>();
-    private static Map<String,String> snapshots = new HashMap<>();
+    private static MerkleTree merkleTree=null;
+    //private static Map<String,String> snapshots = new HashMap<>();
     
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
@@ -168,7 +170,7 @@ public class Server {
         
         
         System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(str.split("\n")[0]);
+        System.out.println(red+str.split("\n")[0]);
         System.out.println("%%%%%%%%%%%%%%%%");
 
         if(tokens[1].equals("Client")){
@@ -208,16 +210,44 @@ public class Server {
             }       
             
 
-            if(tokens[4].equals("CheckBalance")){
-                Integer value = systemAccounts.get(tokens[2]).getValue();
-                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);
-                            
+            if(tokens[4].equals("WeakCheckBalance")){
 
-                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest + "_" + value;
-    
-                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);
+                System.out.println("tokens "+tokens[2]);
+                Account aliceAccount = systemAccounts.get(tokens[2]);
+                byte[] aliceHash=aliceAccount.getAccountHash();
+
                 
+
+                MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
+
+                boolean oi=MerkleTree.verifyProof( proof);
+
+                System.out.println("proof "+oi);
+                /*String proofEncoded=Base64.getEncoder().encodeToString(proof.getLeafHash())+
+                                    Base64.getEncoder().encodeToString(proof.getSiblingHashes())+
+                                    Base64.getEncoder().encodeToString(proof.getLefts().getBytes())+
+                                    Base64.getEncoder().encodeToString(proof.getRootHash());*/
+                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
+                
+                /* 
+                Integer value = systemAccounts.get(tokens[2]).getValue();
+                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);         
+    
+                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);*/
+                
+                byte[] sendData = Signer.sign(response);
+                sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                serverSocket.send(sendPacket);
+                return;
+            }
+
+
+            if(tokens[4].equals("StrongCheckBalancePhase1")){
+                Integer value = systemAccounts.get(tokens[2]).getValue();
+                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+ value;
+
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
@@ -593,7 +623,7 @@ public class Server {
 
     private static void parseCommand (String command) throws Exception{
         //2_1_Joao_1_adeus
-        boolean invalid=false;
+        
         String state="_NACK_";
         System.out.println("deciding block "+command);
         String[] tokens;
@@ -627,10 +657,12 @@ public class Server {
             String client=tokens[2];
             String type=tokens[4];
             String idRequest=tokens[3];
+            String response;
+            int balance=-1;
             
-            
+            String clientSource[]=clientsSource.get(client+idRequest).split("_");
 
-            if(type.equals("CreateAccount") && !invalid){
+            if(type.equals("CreateAccount") ){
                 String initialBalance=tokens[6].split("\n")[0];
 
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
@@ -640,22 +672,41 @@ public class Server {
 
                 if(Signer.getPublicKey(client).equals(publicKey)){
                     if(Integer.parseInt(initialBalance)>=0 && !systemAccounts.containsKey(client)){
+                        
                         Account account= new Account(publicKey,client,initialBalance);
                         systemAccounts.put(client,account);
+                        
                         state="_ACK_";
-                    }else invalid=true;
+                    }
 
-                }else invalid=true;
+                }
 
                 System.out.println("account "+systemAccounts.get(client).getValue());
-            }else{
-                invalid=true;
+            }else if(type.equals("StrongCheckBalancePhase1")){
+                
+
+                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey publicKey = keyFactory.generatePublic(keySpec);
+                if(Signer.getPublicKey(client).equals(publicKey)){
+                    if(systemAccounts.containsKey(client)){
+                        
+                       balance=systemAccounts.get(client).getValue();
+                        
+                        state="_ACK_";
+                    }
+
+                }
+
+            }
+            
+            response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
+            if(balance!=-1){
+                response +="_"+-1;
             }
             
             
-            
-            String clientSource[]=clientsSource.get(client+idRequest).split("_");
-            String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
 
             System.out.println("\n\n\n\nMessage sent to client : " + response);
             
@@ -668,7 +719,10 @@ public class Server {
 
         }
 
+
         //send signed state to other replicas
+        merkleTree= new MerkleTree(systemAccounts);
+
         
         
         

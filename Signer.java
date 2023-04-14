@@ -97,7 +97,7 @@ public class Signer {
         System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str.split("\n")[0]);
+        // System.out.println("Received message: "+str.split("\n")[0]);
 
         //System.out.println("\n\nsignature: "+new String(signature));
 
@@ -120,7 +120,7 @@ public class Signer {
 
 
 
-        System.out.println("Signature verifies: " + verifies+"\n");
+        // System.out.println("Signature verifies: " + verifies+"\n");
 
         if(!verifies){
             return tokens[0]+"_NACK";
@@ -163,15 +163,15 @@ public class Signer {
     }
 
     public static String getKey(PublicKey publicKey){
-        System.out.println("\n\n\n\n\n\n\nLooking for value: " + publicKey);
+        // System.out.println("\n\n\n\n\n\n\nLooking for value: " + publicKey);
         for(Entry<String, PublicKey> entry: publicKeys.entrySet()) {
-            System.out.println("This entry is: " + entry);
+            // System.out.println("This entry is: " + entry);
 
             // if give value is equal to value from entry
             // print the corresponding key
 
             if(entry.getValue().equals(publicKey)) {
-              System.out.println("The key for value " + publicKey + " is " + entry.getKey());
+            //   System.out.println("The key for value " + publicKey + " is " + entry.getKey());
               return entry.getKey();
             }
           }

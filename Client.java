@@ -61,10 +61,10 @@ public class Client {
         while(true){
             String message;
             System.out.println("\nPlease, request an available option:\n");
-            System.out.print("CreateAccount_PubKey_initial Balance.\n");
+            System.out.print("CreateAccount_PubKey_InitialBalance.\n");
             System.out.print("CheckBalance_PubKey.\n");
-            System.out.print("Transfer_Source pubKey_Destination pubKey_Ammount.\n");
-            System.out.print("Exit.\n");
+            System.out.print("Transfer_SourcePubKey_DestinationPubKey_Ammount.\n");
+            System.out.print("Exit.\n\n");
             String command= myObj.nextLine();
 
             String request=parseCommand(command);

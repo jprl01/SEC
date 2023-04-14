@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
 
 public class Server {
     private static final String red = "\u001B[31m";
-    private static final int BLOCK_SIZE=1;
+    private static final int BLOCK_SIZE=2;
     private static final int FEE=2;
 
     private static final Object lock = new Object();
@@ -704,7 +704,7 @@ public class Server {
 
 
             }
-            else if(type.equals("Transfer") && !invalid){
+            else if(type.equals("Transfer")){
                 System.out.println("\n\n\n\n\n\n\n\n\n Entrou no transfer!\n\n\n\n\n");
                 String amountToTransfer=tokens[7].split("\n")[0];
                 System.out.println("Amount to transfer: " + amountToTransfer);
@@ -754,16 +754,14 @@ public class Server {
                             System.out.println("\n\n\n\n\n\n\n\nFez transferencia!\n\n\n\n\n");
                             state="_ACK_";
 
-                        }else invalid = true;
+                        }
 
 
-                    }else invalid=true;
+                    }
 
-                }else invalid=true;
+                }
 
                 System.out.println("account "+systemAccounts.get(client).getValue());
-            }else{
-                invalid=true;
             }
             
             response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;

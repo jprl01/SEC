@@ -41,7 +41,7 @@ public class Comunication {
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
-        int timeout=5000;
+        int timeout=500000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
         //System.out.println("message to send "+message);
         byte[] messageBytes= Signer.sign(message);
@@ -88,7 +88,7 @@ public class Comunication {
                     
 
                 //verify freshness
-                System.out.println("Received response from Server port: "+tokens[0]);
+                // System.out.println("Received response from Server port: "+tokens[0]);
 
                 
                 if(Integer.parseInt(tokens[1])!=messageNounce){
@@ -174,8 +174,8 @@ public class Comunication {
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
-        System.out.println("server port nounce: "+messageNounce+" port: "+socket.getLocalPort());
-        int timeout=5000;
+        // System.out.println("server port nounce: "+messageNounce+" port: "+socket.getLocalPort());
+        int timeout=500000;
         String sendMessage= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= Signer.sign(sendMessage);
         //messageBytes=Signer.sign(new String(String.valueOf(messageNounce).getBytes()+"_".getBytes()+message.getBytes()));
@@ -219,8 +219,8 @@ public class Comunication {
                 }
 
                 //verify freshness
-                System.out.println("SERVER MESSAGE: " + response);
-                System.out.println("\n\n\nConsensus instance:" + tokens[3]);
+                // System.out.println("SERVER MESSAGE: " + response);
+                // System.out.println("\n\n\nConsensus instance:" + tokens[3]);
 
                 boolean noDupliactedPort = false;
 
@@ -249,8 +249,8 @@ public class Comunication {
                 if(noDupliactedPort){
                     //System.out.println("nounce: "+tokens[1]+" expected: "+messageNounce+" port: "+socket.getLocalPort());
                     
-                    System.out.println("Nounce recebido: " + tokens[1]);
-                    System.out.println(("Nounce esperado: " + messageNounce));
+                    // System.out.println("Nounce recebido: " + tokens[1]);
+                    // System.out.println(("Nounce esperado: " + messageNounce));
 
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
@@ -342,7 +342,7 @@ public class Comunication {
                     responseReceived = true;
                     
                 }
-                System.out.println("ACKS received: " + portsAcks);
+                // System.out.println("ACKS received: " + portsAcks);
                 
 
 
@@ -377,7 +377,7 @@ public class Comunication {
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
-                        System.out.println("sending to "+arg);
+                        // System.out.println("sending to "+arg);
                         sendMessageClient(message,arg,CheckBalance);
                     }catch(Exception e){
                         System.out.println("erro");

@@ -1,6 +1,5 @@
 import java.net.*;
-
-
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.PatternSyntaxException;
 
@@ -9,11 +8,26 @@ import java.util.Base64;
 import java.security.KeyFactory;
 
 import java.security.PublicKey;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.io.IOException;
+import java.nio.file.InvalidPathException;
 
 
 
 
-public class Server {
+public class ByzantineServer {
     
     private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
@@ -95,17 +109,25 @@ public class Server {
             leader=true;
             System.out.println("I am the leader server.");
         } 
+
         System.out.println("I am server " + SERVER_PORT);
-        
+        System.out.println("I am byzatine!!!!!");
+
 
         // Create a DatagramSocket
         serverSocket = new DatagramSocket(SERVER_PORT);
-               
+
+        
+        
         
         try{
             while(true){
-            
-            
+                
+                //Byzantine Server adds to the queue a message pretending to be a client, after at least two clients have already created an account
+                if(systemAccounts.size() >= 3){
+
+                }
+
                 byte[] data = new byte[BUFFER_SIZE];
                 DatagramPacket receivePacket = new DatagramPacket(data, data.length);
                 
@@ -115,8 +137,41 @@ public class Server {
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
+                            if(SERVER_PORT == 1235){
+                                System.out.println("\n\n\n\n\n\n\n\n\n");
+                                System.out.println("\n\n\n\n\n\n\n\n\n");
+
+                                System.out.println("\nServer 1235 is signing the client message with its own private key!!\n");
+                                System.out.println("\n\n\n\n\n\n\n\n\n");
+                                System.out.println("\n\n\n\n\n\n\n\n\n");
+
+
+                                String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                                byte[] data = receivedMessage.getBytes();
+                                int separatorIndex = indexOf(data, (byte)'\n');
+            
+                                byte[] messageBytes = new byte[separatorIndex];
+                                byte[] signature = new byte[data.length-separatorIndex-1];
+                        
+                                System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                                System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+                        
+                                String str = new String(messageBytes, StandardCharsets.UTF_8);
+                                System.out.println("Received message: "+str.split("\n")[0]);
+                                
+                                //byzantine server signs clients request with their private key
+                                byte[] messageBadSigned= Signer.sign(str);
+
+                                DatagramPacket badReceivePacket = new DatagramPacket(messageBadSigned, messageBadSigned.length);
+
+                                process(badReceivePacket);
+                            }
+                            else{
+                                process(receivePacket);
+                            }
                             
-                            process(receivePacket);
+
+
                             
                             
                         }catch(Exception e){
@@ -163,14 +218,14 @@ public class Server {
         }
         
         //signature false
-        if(tokens[1].equals("NACK")){
-            String response = String.valueOf(SERVER_PORT)+"_"+str;
+        // if(tokens[1].equals("NACK")){
+        //     String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
-            byte[] sendData = Signer.sign(response);
-            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-            serverSocket.send(sendPacket);
-            return;
-        }
+        //     byte[] sendData = Signer.sign(response);
+        //     sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+        //     serverSocket.send(sendPacket);
+        //     return;
+        // }
         
         
         System.out.println("%%%%%%%%%%%%%%%%");
@@ -792,6 +847,17 @@ public class Server {
         return lowestPort;
     }
 
+    private static int indexOf(byte[] array, byte value) {
+        
+
+        for (int i = array.length - 1; i >= 0; i--) {
+            if (array[i] == value) {
+                return i;
+                
+            }
+        }
+        return -1;
+    }
     
 }
 

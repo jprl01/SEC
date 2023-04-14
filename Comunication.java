@@ -75,32 +75,12 @@ public class Comunication {
                 tokens= response.split("_");
                 
                 //response to PRE-PREPARE = PREPARE
+                responseReceived = true;
                 
                 
                 
-                if(tokens.length>3 && (tokens[3].equals("PREPARE") || tokens[3].equals("COMMIT")) ){
-                    
-                    //System.out.println("recebi prepare");                    
-                    responseReceived = true;
-
-                    Thread thread = new Thread(new Runnable()  {
-                        public void run()  {
-        
-                            try{
-                                Server.process(receivePacket);
-                                
-                            }catch(Exception e){
-                                System.out.println("erro");
-                                e.printStackTrace();
-                            }
-                            
-                        }
-                    });
-                    thread.start();
-                    
-                }else{
-                    response=Signer.verifySign(response.getBytes());
-                }
+                response=Signer.verifySign(response.getBytes());
+                
                     
 
                 //verify freshness
@@ -136,13 +116,13 @@ public class Comunication {
          
     }
 
-    public static void broadcast(String message, String[] ports,Boolean send, Boolean leaderSent,String leaderPort,String nounce) throws Exception{
+    public static void broadcast(String message, String[] ports,String nounce) throws Exception{
         int i=0;
         int id;
         synchronized (lock) {
             
             id=messageId;
-            Server.setBroadcastId(id);
+            
             messageId++;
         }
         for (String port : ports) {
@@ -151,13 +131,8 @@ public class Comunication {
                 break;
             }
             i++;
-            if(send && port.equals(String.valueOf(SERVER_PORT))){
-                continue;
-            }
-            if(leaderSent && port.equals(String.valueOf(Server.getLowestPort()))){
-                //System.out.println("testar broadcast prepare");
-                port=leaderPort;
-            }
+            
+            
 
 
             final String arg = port;
@@ -212,7 +187,7 @@ public class Comunication {
         while (!responseReceived) {
             // Send the packet to the server
             socket.send(packet);
-            //socket.send(packet);
+            
             
             
             // Create a packet to receive the response from the server

@@ -44,7 +44,7 @@ public class Server {
 
     private static String[] sourcePrep =new String[3];
     static int ind=0;
-    private static int broadcastId;
+    
     
     
     
@@ -294,12 +294,12 @@ public class Server {
             String senderPort = tokens[0];
             
             //only send acks responding to commits
-            if((!"PRE-PREPARE".equals(tokens[3]) ) && !"PREPARE".equals(tokens[3])){
-                String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
-                byte[] sendData = Signer.sign(response);
-                sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
-                serverSocket.send(sendPacket);
-            }   
+            
+            String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
+            byte[] sendData = Signer.sign(response);
+            sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
+            serverSocket.send(sendPacket);
+              
             
 
             Thread thread = new Thread(new Runnable()  {
@@ -451,7 +451,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            Comunication.broadcast(prepare,ports,false,leaderSent,String.valueOf(socketPort),nounceR);
+            Comunication.broadcast(prepare,ports,nounceR);
             
             
         }
@@ -490,18 +490,13 @@ public class Server {
                         
                     }
                     consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
-                    if(requests>byznatineQuorum){
-                        System.out.println("prepare extra");
-                        Comunication.sendMessage(commit, String.valueOf(socketPort), broadcastId, nounceR);
-                        return;
-                    }
+                    
                     
                     System.out.println("indiceeeeeeeeeeeee "+ind);
-                    sourcePrep[ind]=String.valueOf(socketPort);
-                    ind++;
+                    
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
-                        //consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-                        ind=0;
+                        consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
+                        
                         
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
@@ -509,7 +504,7 @@ public class Server {
                 }
             }
             if(broadcast){
-                Comunication.broadcast(commit, sourcePrep,false,false,null,nounceR);
+                Comunication.broadcast(commit, ports,nounceR);
                 
             }
                 
@@ -606,7 +601,7 @@ public class Server {
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
 
-            Comunication.broadcast(start, ports,false,false,null,"-1");
+            Comunication.broadcast(start, ports,"-1");
             
             
         }
@@ -731,9 +726,7 @@ public class Server {
         //System.out.println("Map of lists: " + clientsChain);
     }
 
-    public static void setBroadcastId(int id){
-        broadcastId=id;
-    }
+    
     public static int getLowestPort(){
         return lowestPort;
     }

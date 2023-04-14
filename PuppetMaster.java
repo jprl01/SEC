@@ -17,6 +17,7 @@ public class PuppetMaster{
         String commandClient3 = "java Client Joaquim";
         String commandClient4 = "java Client Manuel";
 
+
         String[] terminalCommand = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[0]+portsS+clients};
         String[] terminalCommand2 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[1]+portsS+clients};
         String[] terminalCommand3 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[2]+portsS+clients};
@@ -34,6 +35,7 @@ public class PuppetMaster{
         Process process6 = new ProcessBuilder(terminalCommand6).start();
         Process process7 = new ProcessBuilder(terminalCommand7).start();
         Process process8 = new ProcessBuilder(terminalCommand8).start();
+
 
         // Wait for the process to finish
         try {
@@ -89,5 +91,6 @@ public class PuppetMaster{
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
     }
 }

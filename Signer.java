@@ -11,6 +11,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 
@@ -159,6 +160,22 @@ public class Signer {
 
     public static PublicKey getPublicKey(String name){
         return publicKeys.get(name);
+    }
+
+    public static String getKey(PublicKey publicKey){
+        System.out.println("\n\n\n\n\n\n\nLooking for value: " + publicKey);
+        for(Entry<String, PublicKey> entry: publicKeys.entrySet()) {
+            System.out.println("This entry is: " + entry);
+
+            // if give value is equal to value from entry
+            // print the corresponding key
+
+            if(entry.getValue().equals(publicKey)) {
+              System.out.println("The key for value " + publicKey + " is " + entry.getKey());
+              return entry.getKey();
+            }
+          }
+        return null;
     }
 }
 

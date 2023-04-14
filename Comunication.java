@@ -17,6 +17,10 @@ public class Comunication {
     private static Map<String,Integer> responsesReceived =new HashMap<>();
     //private static int neededResponses=0;
     private static String[] portsS;
+    private static int neededResponses=0;
+    private static int neededResponsesForNack=0;
+
+
     private static int quorum;
     private static int Byzantinequorum;
 
@@ -244,6 +248,10 @@ public class Comunication {
 
                 if(noDupliactedPort){
                     //System.out.println("nounce: "+tokens[1]+" expected: "+messageNounce+" port: "+socket.getLocalPort());
+                    
+                    System.out.println("Nounce recebido: " + tokens[1]);
+                    System.out.println(("Nounce esperado: " + messageNounce));
+
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
                         return;
@@ -321,6 +329,14 @@ public class Comunication {
                             }
                             
                             System.out.println("Response Ok");                            
+                        }
+                        else if(tokens[2].equals("NACK")){
+                            neededResponsesForNack++;
+                            if(neededResponsesForNack>=quorum){
+                                System.out.println("Command "+message+ " was not applied");
+                                neededResponsesForNack=0;
+                            }
+                            System.out.println("Response NOk");                            
                         }
                     }                    
                     responseReceived = true;

@@ -361,7 +361,7 @@ public class ByzantineServer {
                 Signature dsaForSign = Signature.getInstance("SHA1withRSA");
                 dsaForSign.initSign(rsaPrivateKey);
                 dsaForSign.update(messageBytes);
-               signature = dsaForSign.sign();
+                signature = dsaForSign.sign();
         
                 messageBytes = (messageSentByClient+'\n').getBytes();
         
@@ -379,10 +379,11 @@ public class ByzantineServer {
                 
                 System.out.println("Wrong signed message: ");
                 System.out.println(data);
+                String dataAsString = new String(data, StandardCharsets.UTF_8);
 
-                System.out.println(data.toString());
+                System.out.println(dataAsString);
 
-                queue.add(data.toString());     
+                queue.add(dataAsString);     
                 // queue.add(receivedMessage);
                 
 

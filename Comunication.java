@@ -15,6 +15,8 @@ public class Comunication {
     private static Map<String, List<String>> portsAcks = new HashMap<>();
     private static Map<String,List<Integer>> readsValues = new HashMap<>();
     private static Map<String,Integer> responsesReceived =new HashMap<>();
+    private static Map<String,Integer> responsesReceivedForNacks =new HashMap<>();
+
     //private static int neededResponses=0;
     private static String[] portsS;
     private static int quorum;
@@ -31,7 +33,7 @@ public class Comunication {
             
             
         }
-        System.out.println("sending to "+port);
+        // System.out.println("sending to "+port);
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
@@ -79,7 +81,7 @@ public class Comunication {
                     
 
                 //verify freshness
-                System.out.println("Received response from Server port: "+tokens[0]);
+                // System.out.println("Received response from Server port: "+tokens[0]);
 
                 
                 if(Integer.parseInt(tokens[1])!=messageNounce){
@@ -87,7 +89,7 @@ public class Comunication {
                     return;
                 }
                 else{
-                    System.out.println("Response Ok");                   
+                    // System.out.println("Response Ok");                   
                 }                   
                 
                 responseReceived = true;
@@ -126,7 +128,7 @@ public class Comunication {
             messageId++;
         }
         for (String port : ports) {
-            System.out.println("port "+i);
+            // System.out.println("port "+i);
             if(i==NServers){
                 break;
             }
@@ -170,7 +172,7 @@ public class Comunication {
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
-        System.out.println("server port nounce: "+messageNounce+" port: "+socket.getLocalPort());
+        // System.out.println("server port nounce: "+messageNounce+" port: "+socket.getLocalPort());
         int timeout=5000;
         String sendMessage= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= Signer.sign(sendMessage);
@@ -212,9 +214,9 @@ public class Comunication {
                     return;
                 }
 
-                //verify freshness
-                System.out.println("SERVER MESSAGE: " + response);
-                System.out.println("\n\n\nConsensus instance:" + tokens[3]);
+                // //verify freshness
+                // System.out.println("SERVER MESSAGE: " + response);
+                // System.out.println("\n\n\nConsensus instance:" + tokens[3]);
 
                 boolean noDupliactedPort = false;
 
@@ -284,7 +286,7 @@ public class Comunication {
                                         auxValue=values;
                                     }
                                     if(allSame){
-                                        System.out.println(message);
+                                        // System.out.println(message);
                                         System.out.print("You have the following value in your account: " + tokens[4] + "\n");
                                     }else{
                                         //if some value is different ask for consensus
@@ -321,18 +323,34 @@ public class Comunication {
                                 //System.out.println("hello");
                             }else{
                                 if(responsesReceived.get(tokens[3])>=quorum){
-                                    System.out.println("Command "+message+ " was applied");
+                                    System.out.println("Command  was applied.");
                                     responsesReceived.put(tokens[3],0);
                                 }
                             }
                             
-                            System.out.println("Response Ok");                            
+                            // System.out.println("Response Ok");                            
+                        }
+                        else if(tokens[2].equals("NACK")){
+
+                            if(!responsesReceivedForNacks.containsKey(tokens[3])){
+                                responsesReceivedForNacks.put(tokens[3],1);
+                            }else{
+                                responsesReceivedForNacks.put(tokens[3],responsesReceivedForNacks.get(tokens[3])+1);
+                            }
+                            synchronized (lock) {
+                                if(responsesReceivedForNacks.get(tokens[3])>=quorum){
+                                    System.out.println("Command was not applied.");
+                                    responsesReceivedForNacks.put(tokens[3],0);
+                                }                                
+                            }
+
+                            
                         }
                     }                    
                     responseReceived = true;
                     
                 }
-                System.out.println("ACKS received: " + portsAcks);
+                // System.out.println("ACKS rekkceived: " + portsAcks);
                 
 
 
@@ -367,7 +385,7 @@ public class Comunication {
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
-                        System.out.println("sending to "+arg);
+                        // System.out.println("sending to "+arg);
                         sendMessageClient(message,arg,CheckBalance);
                     }catch(Exception e){
                         System.out.println("erro");

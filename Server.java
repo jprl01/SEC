@@ -680,7 +680,7 @@ public class Server {
 
                 }
 
-                System.out.println("account "+systemAccounts.get(client).getValue());
+                // System.out.println("account "+systemAccounts.get(client).getValue());
             }else if(type.equals("StrongCheckBalancePhase2")){
                 
                 //System.out.println("alalalla\n"+tokens[5]);
@@ -755,7 +755,7 @@ public class Server {
 
                 }
 
-                System.out.println("account "+systemAccounts.get(client).getValue());
+                // System.out.println("account "+systemAccounts.get(client).getValue());
             }
             
             response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;

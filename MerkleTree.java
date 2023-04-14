@@ -6,17 +6,17 @@ import java.nio.ByteBuffer;
 
 public class MerkleTree {
     public static Map<String, Account> accounts;
-    //private MerkleTree merkleTree;
+    
     private static List<MerkleNode> roots;
       
 
-    public MerkleTree(Map<String, Account> accounts) throws Exception{
-        this.accounts=accounts;
+    public MerkleTree(Map<String, Account> Accounts) throws Exception{
+        accounts=Accounts;
         byte[][] hashes=computeAccountHashes();
         
         roots = buildTree(hashes);
         
-        //System.out.println("tamanho: "+);
+        
         
     }
 
@@ -246,13 +246,12 @@ public class MerkleTree {
     }
 
     public static boolean verifyProof(  MerkleProof proof) throws Exception {
-        //MessageDigest sha = MessageDigest.getInstance("SHA-1");
+        
         int i=0;
         byte[] computedHash = proof.leafHash;
         if(proof.siblingHashes!=null){
             for (byte[] siblingHash : proof.siblingHashes) {
-                //System.out.println(Base64.getEncoder().encodeToString(computedHash) );
-                //System.out.println(Base64.getEncoder().encodeToString(siblingHash) );
+                
                 if ((computedHash == null) || (siblingHash == null)) {
                     //System.out.println("bazoooo");
                     return false;
@@ -267,8 +266,7 @@ public class MerkleTree {
                 
                 
                 
-                //System.out.println(Base64.getEncoder().encodeToString(computedHash) );
-                //System.out.println(Base64.getEncoder().encodeToString(root.getHash()) );
+                
                 i++;
             }
         }
@@ -278,9 +276,15 @@ public class MerkleTree {
         return MessageDigest.isEqual(proof.rootHash, computedHash);
     }
 
-    /*public static byte[] getRootHash(){
-        return proof.root.getHash();
-    }*/
+   
+    public static String getName(PublicKey pubKey){
+        for(Account account: accounts.values()){
+            if(account.getPublicKey().equals(pubKey)){
+                return account.getClientName();
+            }
+        }
+        return null;
+    }
 
     
 

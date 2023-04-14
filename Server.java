@@ -16,6 +16,7 @@ import java.security.PublicKey;
 public class Server {
     
     private static final int BLOCK_SIZE=1;
+    private static final int FEE=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -85,6 +86,10 @@ public class Server {
             
             
         }
+        PublicKey leaderPublicKey = Signer.getPublicKey(String.valueOf(lowestPort));
+        Account account= new Account(leaderPublicKey, "Leader", "0");
+        systemAccounts.put("Leader",account);
+
         
         if(lowestPort==SERVER_PORT){
             leader=true;
@@ -693,6 +698,64 @@ public class Server {
 
                 }
 
+            }else if(type.equals("Transfer")){
+                //System.out.println("\n\n\n\n\n\n\n\n\n Entrou no transfer!\n\n\n\n\n");
+                String amountToTransfer=tokens[7].split("\n")[0];
+                System.out.println("Amount to transfer: " + amountToTransfer);
+
+
+                // source client
+                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey sourcePublicKey = keyFactory.generatePublic(keySpec);
+
+                //destination client
+                publicKeyBytes = Base64.getDecoder().decode(tokens[6]);
+                keySpec = new X509EncodedKeySpec(publicKeyBytes);
+                keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey destinationPublicKey = keyFactory.generatePublic(keySpec);
+                String destinationName = MerkleTree.getName(destinationPublicKey);
+                System.out.println("Destination name: "+ destinationName);
+
+                if(Signer.getPublicKey(client).equals(sourcePublicKey)){
+                    System.out.println("1!");
+
+                    if(Integer.parseInt(amountToTransfer)>=0 && systemAccounts.containsKey(client) && systemAccounts.containsKey(destinationName)){
+                        System.out.println(" 2!");
+
+                        Account sourceAccount = systemAccounts.get(client);
+                        Integer sourceAccountValue = sourceAccount.getValue();
+
+                        if(sourceAccountValue >= (Integer.parseInt(amountToTransfer) + FEE)){
+                            System.out.println(" 3!");
+
+                            sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
+                            //System.out.print("Client " + client + " has in account " + sourceAccount.getValue());
+                            systemAccounts.replace(client, sourceAccount);
+
+                            Account destinationAccount = systemAccounts.get(destinationName);
+                            destinationAccount.setValue(destinationAccount.getValue()+Integer.parseInt(amountToTransfer));
+                            //System.out.print("Client " + destinationName + " has in account " + destinationAccount.getValue());
+                            systemAccounts.replace(destinationName, destinationAccount);
+
+    
+                            //paying fee to the leader
+                            Account leaderAccount = systemAccounts.get("Leader");
+                            leaderAccount.setValue(leaderAccount.getValue()+ FEE);
+                            systemAccounts.replace("Leader", leaderAccount);
+
+                            //System.out.println("\n\n\n\n\n\n\n\nFez transferencia!\n\n\n\n\n");
+                            state="_ACK_";
+
+                        }
+
+
+                    }
+
+                }
+
+                System.out.println("account "+systemAccounts.get(client).getValue());
             }
             
             response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
@@ -721,7 +784,7 @@ public class Server {
         
         
         
-        //System.out.println("Map of lists: " + clientsChain);
+        
     }
 
     

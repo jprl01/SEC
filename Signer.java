@@ -67,28 +67,26 @@ public class Signer {
 
         messageBytes = (message+'\n').getBytes();
 
-        //System.out.println("tamanho "+ messageBytes.length);
+        
 
         String encodedString = Base64.getEncoder().encodeToString(signature);
 
         signature=encodedString.getBytes();
 
-        String sig = new String(signature);
-        //System.out.println("sig "+signature);
+        
 
         byte[] data = new byte[messageBytes.length + signature.length];
         System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
 
-        //System.out.println("\n\nsize sign "+data.length);
+        
         return data;
     }
 
     static String verifySign(byte[] data) throws Exception{
         PublicKey publicKey;
         int separatorIndex = indexOf(data, (byte)'\n');
-        //System.out.println("\n\nsize verifying "+data.length);
-        //System.out.println("index "+separatorIndex);
+        
         byte[] messageBytes = new byte[separatorIndex];
         byte[] signature = new byte[data.length-separatorIndex-1];
 
@@ -98,7 +96,7 @@ public class Signer {
         String str = new String(messageBytes, StandardCharsets.UTF_8);
         System.out.println("Received message: "+str.split("\n")[0]);
 
-        //System.out.println("\n\nsignature: "+new String(signature));
+        
 
         String[] tokens= str.split("_");
         if(tokens[1].equals("Client"))
@@ -128,15 +126,7 @@ public class Signer {
     }
 
     private static int indexOf(byte[] array, byte value) {
-        /*for (int i = 0; i < array.length; i++) {
-           
-            if (array[i] == value && !second) {
-                return i;
-            }else if(array[i]==value){
-                second=false;
-            }
-        }
-        return -1;*/
+        
 
         for (int i = array.length - 1; i >= 0; i--) {
             if (array[i] == value) {

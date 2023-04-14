@@ -196,9 +196,9 @@ public class Server {
 
                     
                     if(leader){
-                        if(!tokens[4].equals("CheckBalance")){
-                            queue.add(receivedMessage);
-                        }
+                       
+                        queue.add(receivedMessage);
+                        
                     }
                     return;
                 }
@@ -251,6 +251,7 @@ public class Server {
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
+                consensus_started=false;
                 return;
             }
 
@@ -682,10 +683,10 @@ public class Server {
                 }
 
                 System.out.println("account "+systemAccounts.get(client).getValue());
-            }else if(type.equals("StrongCheckBalancePhase1")){
+            }else if(type.equals("StrongCheckBalancePhase2")){
                 
-
-                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
+                //System.out.println("alalalla\n"+tokens[5]);
+                byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5].split("\n")[0]);
                 X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 PublicKey publicKey = keyFactory.generatePublic(keySpec);
@@ -703,7 +704,7 @@ public class Server {
             
             response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
             if(balance!=-1){
-                response +="_"+-1;
+                response +="_"+balance;
             }
             
             

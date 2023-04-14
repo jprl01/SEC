@@ -33,7 +33,9 @@ public class Client {
         faults = (nServers  - 1)/3; 
         
         Comunication.setQuorum(faults+1);
+        Comunication.setByzantineQuorum(2*faults+1);
         Comunication.setNServers(nServers);
+        
         clientName=args[0];
         
         String[] ports = new String[args.length-2];
@@ -47,6 +49,7 @@ public class Client {
             }
         }
         
+        Comunication.setPorts(ports);
         Scanner myObj = new Scanner(System.in); 
          
          
@@ -72,9 +75,14 @@ public class Client {
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
+                        //System.out.println(request.split("_")[0]);
+                        if(request.split("_")[0].equals("StrongCheckBalancePhase1")){
+                            //System.out.println("yayuay");
+                            Comunication.broadcastClient(message,ports,1);
+                        }else{
+                            Comunication.broadcastClient(message,ports,0);
+                        }
                         
-                        
-                        Comunication.broadcastClient(message,ports);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -141,7 +149,7 @@ public class Client {
             return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+tokens[3];
                 
             
-        }else if(tokens[0].equals("CheckBalance")){
+        }else if(tokens[0].equals("StrongCheckBalance")){
             if(tokens.length!=2){
                 System.out.println("CheckBalance needs 2 arguments");
                 return null;
@@ -150,7 +158,7 @@ public class Client {
             PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
             String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
 
-            return tokens[0]+"_"+publicKeyString;
+            return tokens[0]+"Phase1_"+publicKeyString;
             
         }else{
             System.out.println("Unknown command");
@@ -158,6 +166,10 @@ public class Client {
         }
 
         //return command;
+    }
+    public static int incMessageId(){
+        
+        return messageId++;
     }
     
     

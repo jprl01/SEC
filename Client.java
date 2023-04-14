@@ -1,4 +1,4 @@
-import java.net.*;
+
 
 
 import java.util.*;
@@ -11,22 +11,12 @@ import java.util.regex.PatternSyntaxException;
 public class Client {
 
     
-    private static int nounce=1000;
-    
-    
-    
     private static int messageId=0;
     private static String clientName;
     
     private static int nServers;
-    
-    
-    private static final Object lock = new Object();
-    
-    private static int faults=1;
-    
-    
-    
+        
+    private static int faults=1;   
 
     public static void main(String[] args) throws Exception {
         nServers=Integer.parseInt(args[1]);
@@ -75,17 +65,18 @@ public class Client {
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
-                        //System.out.println(request.split("_")[0]);
+                        
                         if(request.split("_")[0].equals("StrongCheckBalancePhase1")){
-                            //System.out.println("yayuay");
+                            
                             Comunication.broadcastClient(message,ports,1);
                         }else{
                             Comunication.broadcastClient(message,ports,0);
                         }
                         
                         
+                    }catch(InterruptedException e){                        
+                        e.printStackTrace();
                     }catch(Exception e){
-                        System.out.println("erro");
                         e.printStackTrace();
                     }
                     
@@ -114,12 +105,14 @@ public class Client {
             System.out.println("Message format is incorret. Message will be ignored.");
             return null;
         }
+
+        //create format= CreateAccount + file to load the key + amount
         if(tokens[0].equals("CreateAccount")){
             if(tokens.length!=3){
                 System.out.println("CreateAccount needs 3 arguments");
                 return null;
             }
-                
+            String ammount =tokens[2];
             PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
             String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
             //initial balance
@@ -127,7 +120,7 @@ public class Client {
                 System.out.println("CreateAccount needs a positive initial balance");
                 return null;
             }
-            return tokens[0]+"_"+publicKeyString+"_"+tokens[2];
+            return tokens[0]+"_"+publicKeyString+"_"+ammount;
            
 
         }else if(tokens[0].equals("Transfer")){
@@ -135,6 +128,8 @@ public class Client {
                 System.out.println("Transfer needs 4 arguments");
                 return null;
             }
+            String ammount=tokens[3];
+
             PublicKey pubSourceKey=Signer.loadPublicKeyFromFile(tokens[1],false);
             PublicKey pubDestKey=Signer.loadPublicKeyFromFile(tokens[2],false);
 
@@ -146,7 +141,7 @@ public class Client {
                 return null;
             }
 
-            return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+tokens[3];
+            return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+ammount;
                 
             
         }else if(tokens[0].equals("StrongCheckBalance")){

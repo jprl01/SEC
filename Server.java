@@ -3,19 +3,18 @@ import java.net.*;
 
 import java.util.*;
 import java.util.regex.PatternSyntaxException;
-import java.io.IOException;
-import java.security.spec.PKCS8EncodedKeySpec;
+
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.security.KeyFactory;
-import java.security.PrivateKey;
+
 import java.security.PublicKey;
-import java.nio.ByteBuffer;
+
 
 
 
 public class Server {
-    private static final String red = "\u001B[31m";
+    
     private static final int BLOCK_SIZE=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
@@ -42,8 +41,8 @@ public class Server {
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
 
-    private static String[] sourcePrep =new String[3];
-    static int ind=0;
+    
+    
     
     
     
@@ -170,7 +169,7 @@ public class Server {
         
         
         System.out.println("%%%%%%%%%%%%%%%%");
-        System.out.println(red+str.split("\n")[0]);
+        //System.out.println(str.split("\n")[0]);
         System.out.println("%%%%%%%%%%%%%%%%");
 
         if(tokens[1].equals("Client")){
@@ -179,7 +178,7 @@ public class Server {
             int idRequest=Integer.parseInt(tokens[3]);
             String clientName = tokens[2];
             clientsSource.put(tokens[2]+idRequest,clientAddress.getHostAddress()+"_"+clientPort+"_"+tokens[0]);
-            System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
+            //System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
                       
             synchronized(lock){
 
@@ -190,6 +189,18 @@ public class Server {
                 }else{
                     System.out.println(" comando certo");
                     
+                }
+
+                if(tokens[4].equals("StrongCheckBalancePhase1")){
+                    Integer value = systemAccounts.get(tokens[2]).getValue();
+                    String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
+                    String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+ value;
+    
+                    byte[] sendData = Signer.sign(response);
+                    sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                    serverSocket.send(sendPacket);
+                    consensus_started=false;
+                    return;
                 }
 
                 if(consensus_started){  
@@ -243,27 +254,14 @@ public class Server {
             }
 
 
-            if(tokens[4].equals("StrongCheckBalancePhase1")){
-                Integer value = systemAccounts.get(tokens[2]).getValue();
-                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+ value;
-
-                byte[] sendData = Signer.sign(response);
-                sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
-                serverSocket.send(sendPacket);
-                consensus_started=false;
-                return;
-            }
+            
 
             
             if(leader){
                 
-                System.out.println("\n\n\n\nAntes de adicionar à queue, mensagem é:\n");
-                System.out.println(receivedMessage);  
-                // receivedMessage = 1001_Client_Joao_0_CreateAccount_MIIC...
-                
-                
-                
+                //System.out.println("\n\n\n\nAntes de adicionar à queue, mensagem é:\n");
+                //System.out.println(receivedMessage);  
+                // receivedMessage = 1001_Client_Joao_0_CreateAccount_MIIC...                
                 queue.add(receivedMessage);
                 
 
@@ -293,7 +291,7 @@ public class Server {
             
             String senderPort = tokens[0];
             
-            //only send acks responding to commits
+            
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
             byte[] sendData = Signer.sign(response);
@@ -309,7 +307,7 @@ public class Server {
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
                         System.out.println("analysing command "+command.split("\n")[0]);
-                        analyse_command(command,ports,leaderSent, senderPort,receivePacket.getPort(),tokens[1]);
+                        analyse_command(command,ports,leaderSent, senderPort,receivePacket.getPort());
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -404,7 +402,7 @@ public class Server {
 
     
 
-    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort,String nounceR) throws Exception{
+    private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort) throws Exception{
         System.out.println("\n\n####################");
         System.out.println(command);
         System.out.println("Sender port: " + senderPort);
@@ -432,7 +430,7 @@ public class Server {
 
             //verifying if commands in block are or not signed by the client
             for(int i=0;i<BLOCK_SIZE;i++){
-                //System.out.println("\n\ntransaction "+transactions[i]);
+                
                 String str=Signer.verifySign(transactions[i].getBytes());
 
                 //if not sent by client invalidate block
@@ -451,7 +449,7 @@ public class Server {
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
-            Comunication.broadcast(prepare,ports,nounceR);
+            Comunication.broadcast(prepare,ports);
             
             
         }
@@ -492,7 +490,7 @@ public class Server {
                     consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
                     
                     
-                    System.out.println("indiceeeeeeeeeeeee "+ind);
+                    
                     
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
@@ -504,7 +502,7 @@ public class Server {
                 }
             }
             if(broadcast){
-                Comunication.broadcast(commit, ports,nounceR);
+                Comunication.broadcast(commit, ports);
                 
             }
                 
@@ -572,7 +570,7 @@ public class Server {
         
         
         parseCommand(command);
-        //broadcast=false;
+        
         consensus_instance++;
                 
         commmandsQueue();
@@ -601,7 +599,7 @@ public class Server {
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
             
 
-            Comunication.broadcast(start, ports,"-1");
+            Comunication.broadcast(start, ports);
             
             
         }

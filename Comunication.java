@@ -20,16 +20,14 @@ public class Comunication {
     private static int quorum;
     private static int Byzantinequorum;
 
-    public static void sendMessage(String message, String port, int id,String nounceR) throws Exception{
+    public static void sendMessage(String message, String port, int id) throws Exception{
         int messageNounce;
         //int id;
         synchronized (lock) {
-            if(Integer.parseInt(nounceR)!=-1){
-                messageNounce=Integer.parseInt(nounceR);
-            }else{
-                messageNounce=nounce;            
-                nounce++;
-            }
+            
+            messageNounce=nounce;            
+            nounce++;
+            
             
             
         }
@@ -39,13 +37,13 @@ public class Comunication {
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
-        //System.out.println("message to send "+message);
+        
         byte[] messageBytes= Signer.sign(message);
-        //System.out.println("\n\nsgined message "+new String(messageBytes));
+        
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
-        // Send the packet to the server
+       
         socket.setSoTimeout(timeout);
         
         
@@ -63,19 +61,16 @@ public class Comunication {
             try {
                 
                 // Wait for the response from the server
-                socket.receive(receivePacket);
+                socket.receive(receivePacket);        
                 
-                
-                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());               
-                
-                
+                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());            
 
                 String[] tokens;
                 
                 tokens= response.split("_");
                 
-                //response to PRE-PREPARE = PREPARE
-                responseReceived = true;
+                
+                
                 
                 
                 
@@ -89,7 +84,7 @@ public class Comunication {
                 
                 if(Integer.parseInt(tokens[1])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
-                    continue;
+                    return;
                 }
                 else{
                     System.out.println("Response Ok");                   
@@ -103,6 +98,11 @@ public class Comunication {
                 
             }catch(PatternSyntaxException e){
                 System.out.println("Message format is incorret. Message will be ignored.");
+                socket.close();
+                return;
+            }catch(SocketException e){                
+                e.printStackTrace();
+                socket.close();
                 return;
             }
         }
@@ -116,7 +116,7 @@ public class Comunication {
          
     }
 
-    public static void broadcast(String message, String[] ports,String nounce) throws Exception{
+    public static void broadcast(String message, String[] ports) throws Exception{
         int i=0;
         int id;
         synchronized (lock) {
@@ -143,7 +143,7 @@ public class Comunication {
 
                     try{
                         
-                        sendMessage(message,arg,id,nounce);
+                        sendMessage(message,arg,id);
                         
                     }catch(Exception e){
                         System.out.println("erro");
@@ -174,9 +174,7 @@ public class Comunication {
         int timeout=5000;
         String sendMessage= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= Signer.sign(sendMessage);
-        //messageBytes=Signer.sign(new String(String.valueOf(messageNounce).getBytes()+"_".getBytes()+message.getBytes()));
-        //String ola =new String(messageBytes);
-        //messageBytes=ola.getBytes();
+        
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
@@ -222,10 +220,11 @@ public class Comunication {
 
                 // tokens[3] = consensus instance
                 synchronized(lock){
+                    //each server can only send one response
                     if(portsAcks.containsKey(tokens[3])){
-                        //vSystem.out.println("HERE");
+                        
                         List<String> acksReceived = portsAcks.get(tokens[3]);
-                        // tokens[0] = server port
+                        
                         if(acksReceived.contains(tokens[0])){
                             System.out.println("The Server " + tokens[0] + " has already sent an ACK for request " + tokens[3]);
                         }
@@ -243,7 +242,7 @@ public class Comunication {
                 
 
                 if(noDupliactedPort){
-                    //System.out.println("nounce: "+tokens[1]+" expected: "+messageNounce+" port: "+socket.getLocalPort());
+                    
                     if(Integer.parseInt(tokens[1])!=messageNounce){
                         System.out.println("Trying to corrupt the message");
                         return;
@@ -254,18 +253,19 @@ public class Comunication {
                             if(!responsesReceived.containsKey(tokens[3])){
                                 responsesReceived.put(tokens[3],1);
                             }else{
-
                                 responsesReceived.put(tokens[3],responsesReceived.get(tokens[3])+1);
                             }
-                            //neededResponses++;
-
+                            
+                            //strongPhase1
                             if(CheckBalance==1){
-                                //System.out.println("bahhhhhh");
+                                
                                 if(!readsValues.containsKey(tokens[3])){
                                     readsValues.put(tokens[3],new ArrayList<>());
                                 }
                                 readsValues.get(tokens[3]).add(Integer.parseInt(tokens[4]));
-                                if(responsesReceived.get(tokens[3])==Byzantinequorum){
+
+                                //check if all received values are the same
+                                if(responsesReceived.get(tokens[3])>=Byzantinequorum){
                                     responsesReceived.put(tokens[3],0);
                                     int value=-1;
                                     int auxValue=-1;
@@ -287,6 +287,8 @@ public class Comunication {
                                         System.out.println(message);
                                         System.out.print("You have the following value in your account: " + tokens[4] + "\n");
                                     }else{
+                                        //if some value is different ask for consensus
+
                                         int id =Client.incMessageId();
                                         String tokens2[] =message.split("_");
                                         String phase2= tokens2[0]+"_"+tokens2[1]+"_"+id+"_StrongCheckBalancePhase2_"+tokens2[4];
@@ -311,7 +313,11 @@ public class Comunication {
                                 }
 
                             }else if(CheckBalance==2){
-                                System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                                if(responsesReceived.get(tokens[3])>=Byzantinequorum){
+                                    responsesReceived.put(tokens[3],0);
+                                    System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                                }
+                                
                                 //System.out.println("hello");
                             }else{
                                 if(responsesReceived.get(tokens[3])>=quorum){

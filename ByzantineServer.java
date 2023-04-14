@@ -28,7 +28,7 @@ import java.nio.file.InvalidPathException;
 
 
 
-public class Server {
+public class ByzantineServer {
     
     private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
@@ -108,7 +108,7 @@ public class Server {
         
         if(lowestPort==SERVER_PORT){
             leader=true;
-            System.out.println("I am the leader server.");
+            System.out.println("I am a byzantine leader server.");
         } 
         System.out.println("I am server " + SERVER_PORT);
 
@@ -229,8 +229,53 @@ public class Server {
                     
                     if(leader){
 
-                 
-                            queue.add(receivedMessage);
+                            System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                            System.out.println("Forging");
+                            System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                            //extrair mensagem enviada pelo cliente
+                            byte[] data = receivedMessage.getBytes();
+
+                            int separatorIndex = indexOf(data, (byte)'\n');
+    
+                            byte[] messageBytes = new byte[separatorIndex];
+                            byte[] signature = new byte[data.length-separatorIndex-1];
+                    
+                            System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                            System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+                    
+                            String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
+
+                            //carregar chave privada do servidor 1235
+                            String fileName = "1235Priv.key";
+                            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+                            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+                            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                            PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+                
+                            // privatekey = rsaPrivateKey;
+
+                            //assinatura com a chave do server bizantino
+                            Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+                            dsaForSign.initSign(rsaPrivateKey);
+                            dsaForSign.update(messageBytes);
+                           signature = dsaForSign.sign();
+                    
+                            messageBytes = (messageSentByClient+'\n').getBytes();
+                    
+                            
+                    
+                            String encodedString = Base64.getEncoder().encodeToString(signature);
+                    
+                            signature=encodedString.getBytes();
+                    
+                            
+                    
+                            data = new byte[messageBytes.length + signature.length];
+                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                            System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+                            
+                            queue.add(data.toString());
+
                        
                         
                     }
@@ -282,10 +327,63 @@ public class Server {
             
             if(leader){
                 
-                //System.out.println("\n\n\n\nAntes de adicionar à queue, mensagem é:\n");
-                //System.out.println(receivedMessage);  
-                // receivedMessage = 1001_Client_Joao_0_CreateAccount_MIIC...                
-                queue.add(receivedMessage);
+                System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                System.out.println("Forging");
+                System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                System.out.println("Correct received message: ");
+                System.out.println(receivedMessage);
+                //extrair mensagem enviada pelo cliente
+                byte[] data = receivedMessage.getBytes();
+
+                int separatorIndex = indexOf(data, (byte)'\n');
+
+                byte[] messageBytes = new byte[separatorIndex];
+                byte[] signature = new byte[data.length-separatorIndex-1];
+        
+                System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+        
+                String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
+
+                System.out.println("Message sent by client:");
+                System.out.println(messageSentByClient);
+
+                //carregar chave privada do servidor 1235
+                String fileName = "1235Priv.key";
+                byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+                PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+    
+                // privatekey = rsaPrivateKey;
+
+                //assinatura com a chave do server bizantino
+                Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+                dsaForSign.initSign(rsaPrivateKey);
+                dsaForSign.update(messageBytes);
+               signature = dsaForSign.sign();
+        
+                messageBytes = (messageSentByClient+'\n').getBytes();
+        
+                
+        
+                String encodedString = Base64.getEncoder().encodeToString(signature);
+        
+                signature=encodedString.getBytes();
+        
+                
+        
+                data = new byte[messageBytes.length + signature.length];
+                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+                
+                System.out.println("Wrong signed message: ");
+                System.out.println(data);
+
+                System.out.println(data.toString());
+
+                queue.add(data.toString());     
+                // queue.add(receivedMessage);
                 
 
                 System.out.println("queue "+queue.size());

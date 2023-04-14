@@ -123,7 +123,14 @@ public class Client {
             }
             String ammount =tokens[2];
             PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
+
+            if(pubAccountKey == null){
+                System.out.println("Please, enter a valid client name.");
+
+                return null;
+            }
             String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
+
             //initial balance
             if(Integer.parseInt(tokens[2])<=0){
                 System.out.println("\nCreateAccount needs a positive initial balance");

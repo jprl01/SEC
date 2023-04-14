@@ -33,8 +33,9 @@ public class Signer {
             if(save)
                 publicKeys.put(name, pubk);
             
-        }catch(IOException | SecurityException  |InvalidPathException e){
-            e.printStackTrace();
+        }catch(IOException | SecurityException |InvalidPathException e){
+            // e.printStackTrace();
+            System.out.println("The client " + name + " is not known by the system.");
         }
         return pubk;
         

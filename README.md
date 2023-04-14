@@ -1,9 +1,10 @@
 #HDS Ledger
 
-##HDS Project - Stage 1
+##HDS Project - Stage 2
+
+###Token Exchange System
 
 ### Authors: *Group 27*
-* [David Cruz] - 89377
 * [Catarina Beirolas] - 93034
 * [João Luı́s] - 95607
 
@@ -148,7 +149,7 @@ They follow the naming convention: \<Client/ServerName\> + "Priv"/"Pub" + ".Key"
 - Keys already generated for Servers:
   1234Priv.Key, 1234Pub.key, 1235Priv.Key, 1235Pub.key, 1236Priv.Key, 1236Pub.key, 1237Priv.Key, 1237Pub.key
 - Keys already generated for Client:
-  JoaoPriv.key, JoaoPub.key
+  JoaoPriv.key, JoaoPub.key, CatarinaPriv.key, CatarinaPub.key, JoaquimPriv.key, JoaquimPub.key, ManuelPriv.key, ManuelPub.key, 
 - Keys generated to test fake signing:
   pub.key, priv.key
 

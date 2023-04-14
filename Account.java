@@ -5,6 +5,7 @@ public class Account {
         private PublicKey publicKey;
         private String clientName;
         private int value;
+        private byte[] accountHash;
 
         public Account(PublicKey publicKey, String clientName, String value) {
             this.publicKey = publicKey;
@@ -40,5 +41,12 @@ public class Account {
             this.value = value;
         }
 
+        public void setAccountHash(byte[] hash){
+            this.accountHash=hash;
+        }
+
+        public byte[] getAccountHash(){
+            return this.accountHash;
+        }
         
 }

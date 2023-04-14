@@ -13,10 +13,16 @@ public class Comunication {
 
     //for client-side
     private static Map<String, List<String>> portsAcks = new HashMap<>();
+    private static Map<String,List<Integer>> readsValues = new HashMap<>();
+    private static Map<String,Integer> responsesReceived =new HashMap<>();
+    //private static int neededResponses=0;
+    private static String[] portsS;
     private static int neededResponses=0;
     private static int neededResponsesForNack=0;
 
+
     private static int quorum;
+    private static int Byzantinequorum;
 
     public static void sendMessage(String message, String port, int id,String nounceR) throws Exception{
         int messageNounce;
@@ -73,32 +79,12 @@ public class Comunication {
                 tokens= response.split("_");
                 
                 //response to PRE-PREPARE = PREPARE
+                responseReceived = true;
                 
                 
                 
-                if(tokens.length>3 && (tokens[3].equals("PREPARE") || tokens[3].equals("COMMIT")) ){
-                    
-                    //System.out.println("recebi prepare");                    
-                    responseReceived = true;
-
-                    Thread thread = new Thread(new Runnable()  {
-                        public void run()  {
-        
-                            try{
-                                Server.process(receivePacket);
-                                
-                            }catch(Exception e){
-                                System.out.println("erro");
-                                e.printStackTrace();
-                            }
-                            
-                        }
-                    });
-                    thread.start();
-                    
-                }else{
-                    response=Signer.verifySign(response.getBytes());
-                }
+                response=Signer.verifySign(response.getBytes());
+                
                     
 
                 //verify freshness
@@ -134,13 +120,13 @@ public class Comunication {
          
     }
 
-    public static void broadcast(String message, String[] ports,Boolean send, Boolean leaderSent,String leaderPort,String nounce) throws Exception{
+    public static void broadcast(String message, String[] ports,String nounce) throws Exception{
         int i=0;
         int id;
         synchronized (lock) {
             
             id=messageId;
-            Server.setBroadcastId(id);
+            
             messageId++;
         }
         for (String port : ports) {
@@ -149,13 +135,8 @@ public class Comunication {
                 break;
             }
             i++;
-            if(send && port.equals(String.valueOf(SERVER_PORT))){
-                continue;
-            }
-            if(leaderSent && port.equals(String.valueOf(Server.getLowestPort()))){
-                //System.out.println("testar broadcast prepare");
-                port=leaderPort;
-            }
+            
+            
 
 
             final String arg = port;
@@ -182,7 +163,7 @@ public class Comunication {
         }
     }
 
-    public static void sendMessageClient(String message, String port) throws Exception{
+    public static void sendMessageClient(String message, String port,int CheckBalance) throws Exception{
         int mult=1;
         int messageNounce;
         synchronized (lock) {
@@ -195,8 +176,8 @@ public class Comunication {
         DatagramSocket socket = new DatagramSocket();
         System.out.println("server port nounce: "+messageNounce+" port: "+socket.getLocalPort());
         int timeout=5000;
-        message= String.valueOf(messageNounce)+"_"+message;
-        byte[] messageBytes= Signer.sign(message);
+        String sendMessage= String.valueOf(messageNounce)+"_"+message;
+        byte[] messageBytes= Signer.sign(sendMessage);
         //messageBytes=Signer.sign(new String(String.valueOf(messageNounce).getBytes()+"_".getBytes()+message.getBytes()));
         //String ola =new String(messageBytes);
         //messageBytes=ola.getBytes();
@@ -210,7 +191,7 @@ public class Comunication {
         while (!responseReceived) {
             // Send the packet to the server
             socket.send(packet);
-            //socket.send(packet);
+            
             
             
             // Create a packet to receive the response from the server
@@ -277,11 +258,76 @@ public class Comunication {
                     }
                     else{
                         if(tokens[2].equals("ACK")){
-                            neededResponses++;
-                            if(neededResponses>=quorum){
-                                System.out.println("Command "+message+ " was applied");
-                                neededResponses=0;
+
+                            if(!responsesReceived.containsKey(tokens[3])){
+                                responsesReceived.put(tokens[3],1);
+                            }else{
+
+                                responsesReceived.put(tokens[3],responsesReceived.get(tokens[3])+1);
                             }
+                            //neededResponses++;
+
+                            if(CheckBalance==1){
+                                //System.out.println("bahhhhhh");
+                                if(!readsValues.containsKey(tokens[3])){
+                                    readsValues.put(tokens[3],new ArrayList<>());
+                                }
+                                readsValues.get(tokens[3]).add(Integer.parseInt(tokens[4]));
+                                if(responsesReceived.get(tokens[3])==Byzantinequorum){
+                                    responsesReceived.put(tokens[3],0);
+                                    int value=-1;
+                                    int auxValue=-1;
+                                    boolean allSame=true;
+                                    for(int values: readsValues.get(tokens[3])){
+                                        
+                                        if(value==-1){
+                                            value=values;
+                                            auxValue=values;
+                                            continue;
+                                        }
+                                        else if(auxValue!=-1 && values!=auxValue){
+                                            allSame=false;
+                                            break;
+                                        }
+                                        auxValue=values;
+                                    }
+                                    if(allSame){
+                                        System.out.println(message);
+                                        System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                                    }else{
+                                        int id =Client.incMessageId();
+                                        String tokens2[] =message.split("_");
+                                        String phase2= tokens2[0]+"_"+tokens2[1]+"_"+id+"_StrongCheckBalancePhase2_"+tokens2[4];
+
+                                        Thread thread = new Thread(new Runnable()  {
+                                            public void run()  {
+                                                try{
+                                                    broadcastClient(phase2, portsS, 2);       
+                                                    
+                                                    
+                                                }catch(Exception e){
+                                                    System.out.println("erro");
+                                                    e.printStackTrace();
+                                                }
+                                                
+                                            }
+                                        });
+                                        thread.start();
+                                        
+
+                                    }
+                                }
+
+                            }else if(CheckBalance==2){
+                                System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                                //System.out.println("hello");
+                            }else{
+                                if(responsesReceived.get(tokens[3])>=quorum){
+                                    System.out.println("Command "+message+ " was applied");
+                                    responsesReceived.put(tokens[3],0);
+                                }
+                            }
+                            
                             System.out.println("Response Ok");                            
                         }
                         else if(tokens[2].equals("NACK")){
@@ -297,9 +343,7 @@ public class Comunication {
                     
                 }
                 System.out.println("ACKS received: " + portsAcks);
-                if(tokens.length == 5){
-                    System.out.print("You have the following value in your account: " + tokens[4] + "\n");
-                }
+                
 
 
             } catch (SocketTimeoutException e) {
@@ -322,7 +366,7 @@ public class Comunication {
         
     }
 
-    public static void broadcastClient(String message, String[] ports) throws Exception{
+    public static void broadcastClient(String message, String[] ports, int CheckBalance) throws Exception{
         int i=0;
         for (String port : ports) {
             if(i==NServers)
@@ -334,7 +378,7 @@ public class Comunication {
                 public void run()  {
                     try{
                         System.out.println("sending to "+arg);
-                        sendMessageClient(message,arg);
+                        sendMessageClient(message,arg,CheckBalance);
                     }catch(Exception e){
                         System.out.println("erro");
                         e.printStackTrace();
@@ -362,6 +406,14 @@ public class Comunication {
 
     public static void setQuorum(int quor){
         quorum=quor;
+    }
+
+    public static void setByzantineQuorum(int quor){
+        Byzantinequorum=quor;
+    }
+
+    public static void setPorts(String[] ports){
+        portsS=ports;
     }
 
 }

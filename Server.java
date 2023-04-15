@@ -256,35 +256,15 @@ public class Server {
 
                 MerkleTree.MerkleProof proof = merkleTree.getProof(hash);
 
-                boolean oi=MerkleTree.verifyProof( proof);
+                //boolean oi=MerkleTree.verifyProof( proof);
 
-                System.out.println("proof "+oi);
-                String siblings="";
-                String left="";
-                int i=0;
-                for(boolean isleft: proof.getLefts()){
-                    if(i==proof.getSiblingHashes().length)
-                        break;
-                    
-                    if(isleft){
-                        left+="L-";
-                    }else{
-                        left+="R-";
-                    }
-                    
-                    i++;
-                }
-                for(byte[] sibling : proof.getSiblingHashes()){
-                    siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
-                }
-                String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
-                                        Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                           "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
+                //System.out.println("proof "+oi);
+                String proofEncoded=transformProof(account, proof);
                 
                 String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
                 String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+proofEncoded ;
                 
-                System.out.println("prooooof "+response);
+                //System.out.println("prooooof "+response);
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
@@ -362,6 +342,36 @@ public class Server {
 
             
         }
+
+    }
+    public static String transformProof(Account account,MerkleTree.MerkleProof proof){
+        String siblings="";
+        String left="";
+        int i=0;
+        for(boolean isleft: proof.getLefts()){
+            if(proof.getSiblingHashes()==null || i==proof.getSiblingHashes().length)
+                break;
+            
+            if(isleft){
+                left+="L-";
+            }else{
+                left+="R-";
+            }
+            
+            i++;
+        }
+        if(proof.getSiblingHashes()!=null){
+            for(byte[] sibling : proof.getSiblingHashes()){
+                siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
+            }
+        }else{
+            siblings="-";
+        }
+        
+        String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
+                                Base64.getEncoder().encodeToString(proof.getLeafHash())+
+                                    "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
+        return proofEncoded;
 
     }
     private static boolean processIdRequest(String client, int idRequest){
@@ -838,6 +848,7 @@ public class Server {
 
         //make a snapshot
         if(consensus_instance%SNAPSHOT==0){
+            System.out.println("ola");
             merkleTree= new MerkleTree(systemAccounts);
         }
             

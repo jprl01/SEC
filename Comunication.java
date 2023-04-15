@@ -331,6 +331,7 @@ public class Comunication {
                                 proof.setRootHash(rootHash);
                                 int i=0;
                                 for(String sibling: tokens[8].split("-")){
+                                    System.out.println("sib"+sibling);
                                     if(sibling==""){
                                         break;
                                     }

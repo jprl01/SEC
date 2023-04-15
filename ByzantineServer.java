@@ -205,7 +205,7 @@ public class ByzantineServer {
 
                 //verify Id
                 if(!processIdRequest(tokens[2], idRequest)){
-                    System.out.println(" comando errado");
+                    System.out.println(" comando errado1");
                     return;
                 }else{
                     System.out.println(" comando certo");
@@ -557,11 +557,23 @@ public class ByzantineServer {
 
                 //if not sent by client invalidate block
                 if(str.split("_")[1].equals("NACK")){
-                    System.out.println("\n\n\n\n\n\n\n\n Wrong sign!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                    System.out.println(str);
+                    System.out.println("\n\n\n\n\n\n\n\n Wrong sign!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
                     String response = String.valueOf(SERVER_PORT)+"_"+str;
                     byte[] sendData = Signer.sign(response);
                     DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("localhost"), socketPort);
                     serverSocket.send(sendPacket);
+
+                    System.out.println("\n\n\n\n\n#####");
+                    System.out.println(transactions[i] + "\n\n\n\n\n");
+
+
+                    // response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
+                    // byte[] sendData = Signer.sign(response);
+                    // DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                    // serverSocket.send(sendPacket);
+
+
                     return;
                         
                 }

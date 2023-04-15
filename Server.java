@@ -463,6 +463,28 @@ public class Server {
                     byte[] sendData = Signer.sign(response);
                     DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("localhost"), socketPort);
                     serverSocket.send(sendPacket);
+
+                    String[] tokensRequest;
+
+                    try{
+                        tokensRequest= transactions[i].split("_");
+                    }
+                    catch(PatternSyntaxException e){
+                        System.out.println("Message format is incorret. Message will be ignored.");
+                        return;
+                    }
+                    String[] clientSource;
+                    if(clientsSource.containsKey(tokensRequest[2] + tokensRequest[3])){
+                        clientSource = clientsSource.get(tokensRequest[2] + tokensRequest[3]).split("_");;
+                        response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_NACK_" + tokensRequest[3];
+                        sendData = Signer.sign(response);
+                        sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                        serverSocket.send(sendPacket);
+                    }
+                    System.out.println("\n\n\n\n\n#####");
+                    System.out.println(transactions[i] + "\n\n\n\n\n");
+
+
                     return;
                         
                 }

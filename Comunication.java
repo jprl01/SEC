@@ -314,7 +314,7 @@ public class Comunication {
                                 
                             }else{
                                 if(responsesReceived.get(tokens[3])>=quorum){
-                                    System.out.println("Command  was applied.");
+                                    System.out.println("Command was applied.");
                                     responsesReceived.put(tokens[3],0);
                                 }
                             }

@@ -1,9 +1,5 @@
-
-
-
-import java.util.*;
 import java.security.PublicKey;
-
+import java.util.Base64;
 import java.util.Scanner;
 import java.util.regex.PatternSyntaxException;
 
@@ -164,6 +160,12 @@ public class Client {
         }else if(tokens[0].equals("StrongCheckBalance") || tokens[0].equals("WeakCheckBalance")){
             if(tokens.length!=2){
                 System.out.println("\nCheckBalance needs 2 arguments");
+                return null;
+            }
+            if(!tokens[1].equals(clientName)){
+                System.out.println(tokens[1]);
+                System.out.println(clientName);
+                System.out.println("\nClient name is wrong, please, repeat the request");
                 return null;
             }
 

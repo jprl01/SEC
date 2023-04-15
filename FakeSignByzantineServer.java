@@ -235,7 +235,7 @@ public class FakeSignByzantineServer {
                             //extrair mensagem enviada pelo cliente
                             byte[] data = receivedMessage.getBytes();
 
-                            int separatorIndex = indexOf(data, (byte)'\n');
+                            int separatorIndex = Signer.indexOf(data, (byte)'\n');
     
                             byte[] messageBytes = new byte[separatorIndex];
                             byte[] signature = new byte[data.length-separatorIndex-1];

@@ -175,8 +175,10 @@ public class Comunication {
         int timeout=5000;
         String sendMessage= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= Signer.sign(sendMessage);
+        System.out.println("Message bytes sent by the client: " + sendMessage);
 
-        // System.out.println("Message bytes sent by the client: " + messageBytes);
+
+        System.out.println("Message bytes sent by the client bytes: " + messageBytes);
         
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));

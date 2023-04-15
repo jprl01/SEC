@@ -124,7 +124,7 @@ public class Signer {
         return str;
     }
 
-    private static int indexOf(byte[] array, byte value) {
+    public static int indexOf(byte[] array, byte value) {
         
 
         for (int i = array.length - 1; i >= 0; i--) {

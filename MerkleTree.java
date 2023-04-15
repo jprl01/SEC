@@ -212,6 +212,20 @@ public class MerkleTree {
         private boolean[] isLeft= new boolean[20];
         private byte[] rootHash;
 
+        public MerkleProof(byte[] leafHash, byte[][] siblingHashes, boolean[] isLeft, byte[] rootHash){
+            this.leafHash=leafHash;
+            this.siblingHashes=siblingHashes;
+            this.isLeft=isLeft;
+            this.rootHash=rootHash;
+        }
+
+        public MerkleProof(){
+
+        }
+
+        public void setRootHash(byte[] rootHash){
+            this.rootHash=rootHash;
+        }
         public byte[] getRootHash(){
             return rootHash;
         }

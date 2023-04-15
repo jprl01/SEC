@@ -312,12 +312,18 @@ public class Server {
             
             String senderPort = tokens[0];
             
-            
+            if(tokens[3].equals("SNAPSHOT")){
+
+                //it should have sent the whole tree and verificate
+                System.out.println("everyone is doing snapshots");
+            }
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
             byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             serverSocket.send(sendPacket);
+
+            
               
             
 
@@ -848,8 +854,11 @@ public class Server {
 
         //make a snapshot
         if(consensus_instance%SNAPSHOT==0){
-            System.out.println("ola");
+            
             merkleTree= new MerkleTree(systemAccounts);
+            Comunication.broadcast("SNAPSHOT_"+consensus_instance,ports);
+
+            
         }
             
 

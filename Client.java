@@ -65,8 +65,9 @@ public class Client {
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
-                        
-                        if(request.split("_")[0].equals("StrongCheckBalancePhase1")){
+                        if(request.split("_")[0].equals("WeakCheckBalance")){
+                            Comunication.broadcastClient(message,ports,2);
+                        }else if(request.split("_")[0].equals("StrongCheckBalancePhase1")){
                             
                             Comunication.broadcastClient(message,ports,1);
                         }else{
@@ -144,7 +145,7 @@ public class Client {
             return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+ammount;
                 
             
-        }else if(tokens[0].equals("StrongCheckBalance")){
+        }else if(tokens[0].equals("StrongCheckBalance") || tokens[0].equals("WeakCheckBalance")){
             if(tokens.length!=2){
                 System.out.println("CheckBalance needs 2 arguments");
                 return null;
@@ -153,7 +154,10 @@ public class Client {
             PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
             String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
 
-            return tokens[0]+"Phase1_"+publicKeyString;
+            if(tokens[0].equals("StrongCheckBalance"))
+                return tokens[0]+"Phase1_"+publicKeyString;
+            else
+                return tokens[0]+"_"+publicKeyString;
             
         }else{
             System.out.println("Unknown command");

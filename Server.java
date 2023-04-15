@@ -229,32 +229,48 @@ public class Server {
             if(tokens[4].equals("WeakCheckBalance")){
 
                 System.out.println("tokens "+tokens[2]);
-                Account aliceAccount = systemAccounts.get(tokens[2]);
-                byte[] aliceHash=aliceAccount.getAccountHash();
+                Account account = systemAccounts.get(tokens[2]);
+                byte[] hash=account.getAccountHash();
 
                 
 
-                MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
+                MerkleTree.MerkleProof proof = merkleTree.getProof(hash);
 
                 boolean oi=MerkleTree.verifyProof( proof);
 
                 System.out.println("proof "+oi);
-                /*String proofEncoded=Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                    Base64.getEncoder().encodeToString(proof.getSiblingHashes())+
-                                    Base64.getEncoder().encodeToString(proof.getLefts().getBytes())+
-                                    Base64.getEncoder().encodeToString(proof.getRootHash());*/
-                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
+                String siblings="";
+                String left="";
+                int i=0;
+                for(boolean isleft: proof.getLefts()){
+                    if(i==proof.getSiblingHashes().length)
+                        break;
+                    
+                    if(isleft){
+                        left+="L-";
+                    }else{
+                        left+="R-";
+                    }
+                    
+                    i++;
+                }
+                for(byte[] sibling : proof.getSiblingHashes()){
+                    siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
+                }
+                String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
+                                        Base64.getEncoder().encodeToString(proof.getLeafHash())+
+                                           "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
                 
-                /* 
-                Integer value = systemAccounts.get(tokens[2]).getValue();
-                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);         
-    
-                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);*/
+                String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+proofEncoded ;
+                
+                System.out.println("prooooof "+response);
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
+
+                consensus_started=false;
                 return;
             }
 

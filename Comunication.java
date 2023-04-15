@@ -3,9 +3,12 @@ import java.net.*;
 
 import java.util.regex.PatternSyntaxException;
 
+//import MerkleTree.MerkleProof;
+
 
 public class Comunication {
     static int NServers;
+
     static int messageId=0;
     static int nounce=1000;
     static int SERVER_PORT;
@@ -15,7 +18,7 @@ public class Comunication {
     private static Map<String, List<String>> portsAcks = new HashMap<>();
     private static Map<String,List<Integer>> readsValues = new HashMap<>();
     private static Map<String,Integer> responsesReceived =new HashMap<>();
-    //private static int neededResponses=0;
+    
     private static String[] portsS;
     private static int quorum;
     private static int Byzantinequorum;
@@ -313,12 +316,43 @@ public class Comunication {
                                 }
 
                             }else if(CheckBalance==2){
-                                if(responsesReceived.get(tokens[3])>=Byzantinequorum){
-                                    responsesReceived.put(tokens[3],0);
-                                    System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                                //weak reads only needs one message
+                                if(responsesReceived.get(tokens[3])<0){
+                                    responseReceived = true;
+                                    return;
+                                }else{
+                                    responsesReceived.put(tokens[3],-10);
                                 }
                                 
-                                //System.out.println("hello");
+                                //transform the proof received
+                                MerkleTree.MerkleProof proof = new MerkleTree.MerkleProof();
+
+                                //account hash
+                                byte[] leafHash=Base64.getDecoder().decode(tokens[4]);
+                                byte[] rootHash=Base64.getDecoder().decode(tokens[7]);
+                                proof.setLeafHash(leafHash);
+                                proof.setRootHash(rootHash);
+                                int i=0;
+                                for(String sibling: tokens[8].split("-")){
+                                    if(sibling==""){
+                                        break;
+                                    }
+                                    //System.out.println("left "+);
+                                    if(tokens[9].split("-")[i].equals("L")){
+                                        proof.addSiblingHash(Base64.getDecoder().decode(sibling), true);
+                                    }else{
+                                        proof.addSiblingHash(Base64.getDecoder().decode(sibling),false);
+                                    }
+                                    i++;
+                                }
+                                if(MerkleTree.verifyProof(proof)){
+                                    System.out.println("proof ok : balance is "+tokens[5]);
+                                }              
+                                
+                                
+                                System.out.println(response);
+                                
+                                
                             }else{
                                 if(responsesReceived.get(tokens[3])>=quorum){
                                     System.out.println("Command "+message+ " was applied");

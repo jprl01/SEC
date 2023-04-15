@@ -28,7 +28,7 @@ import java.nio.file.InvalidPathException;
 
 
 
-public class ByzantineServer {
+public class FakeSignByzantineServer {
     
     private static final int BLOCK_SIZE=1;
     private static final int FEE=1;

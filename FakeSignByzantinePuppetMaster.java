@@ -5,14 +5,14 @@ import java.lang.InterruptedException;
 
 
 
-public class ByzantinePuppetMaster{
+public class FakeSignByzantinePuppetMaster{
     public static void main(String[] args) throws Exception {
         // Launch a new terminal window and execute a command in it
         String[] ports ={"1234","1235","1236","1237"};
         String portsS=" 1234 1235 1236 1237";
         String clients=" Joao Catarina Joaquim Manuel";
         String command = "java Server";
-        String byzatineCommand = "java ByzantineServer";
+        String byzatineCommand = "java FakeSignByzantineServer";
         String commandClient1 = "java Client Joao";
         String commandClient2 = "java Client Catarina";
         String commandClient3 = "java Client Joaquim";

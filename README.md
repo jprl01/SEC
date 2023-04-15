@@ -24,6 +24,10 @@ Byzantine Server send in the block a request signed by them instead of the Clien
 
 For this test, the leader server will be byzantine: when it receives a request from a client, it signs it, so when the other servers receive the pre-prepare message, they verify the request was not signed by the client and so they let the client know their request is not going to be processed.
 
+Byzantine Server sends a wrong value for a Strong Check Balance
+
+For this test, the one Byzantine Server always replied with a fixed (and wrong) value when a client makes a Strong Check Balance request. If the Client receives the three correct (and equal) values first, they'll accept that value. Instead, if the value sent by the Byzantine Server is not the last, the Client will request a second phase and the request will be processed in a block.
+
 **3) Running the tests**
 
 For testing we developed 2 PuppetMasters, what they do is open 8 separate windows command lines, 4 of them running servers and the other four running the Clients, if you're on windows you can check how to run the Puppet Masters on 3.1) and if not, follow the instructions in 3.2).
@@ -47,7 +51,9 @@ java PuppetMaster
 The other PuppetMasters can all be ran in a similar way, each having their own PuppetMaster Class.
 
 ```
-Byzantine Server Attack - java ByzantinePuppetMaster
+Fake Sign Byzantine Server Attack - java FakeSignByzantinePuppetMaster
+
+Strong Check Balance Byzantine Server Attack - java StrongCheckBalanceByzantinePuppetMaster
 
 ```
 

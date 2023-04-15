@@ -17,6 +17,7 @@ public class Server {
     
     private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
+    private static final int SNAPSHOT=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -56,6 +57,7 @@ public class Server {
     private static String[] ports;
     private static int lowestPort;
     private static DatagramSocket serverSocket;
+    
     
 
 
@@ -793,8 +795,11 @@ public class Server {
         }
 
 
-        //send signed state to other replicas
-        merkleTree= new MerkleTree(systemAccounts);
+        //make a snapshot
+        if(consensus_instance%SNAPSHOT==0){
+            merkleTree= new MerkleTree(systemAccounts);
+        }
+            
 
         
         

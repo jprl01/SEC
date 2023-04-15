@@ -285,7 +285,9 @@ public class Comunication {
                                         auxValue=values;
                                     }
                                     if(allSame){
-                                        System.out.print("You have the following value in your account: " + tokens[4] + "\n");
+                                        // System.out.println(tokens[0]+"_"+tokens[1]+"_"+tokens[2]+"_"+tokens[3]);
+
+                                        System.out.println("Request " + tokens[3] +". By performing a Strong Check Balance, you have the following value in your account: " + tokens[4] + "\n");
                                     }else{
                                         //if some value is different ask for consensus
 
@@ -344,7 +346,8 @@ public class Comunication {
                                     i++;
                                 }
                                 if(MerkleTree.verifyProof(proof)){
-                                    System.out.println("proof ok : balance is "+tokens[5]);
+                                    // System.out.println(tokens[0]+"_"+tokens[1]+"_"+tokens[2]+"_"+tokens[3]+"_"+tokens[4]+"_"+tokens[5]+"_"+tokens[6]+"_"+tokens[7]+"_"+tokens[8]+"_");
+                                    System.out.println("Request " + tokens[3] +". By performing a Weak Check Balance, you have the following value in your account: " + tokens[5] + "\n");
                                 }              
                                 
                                 
@@ -354,7 +357,7 @@ public class Comunication {
 
                             }else{
                                 if(responsesReceived.get(tokens[3])>=quorum){
-                                    System.out.println("Command was applied.");
+                                    System.out.println("Command " + tokens[3] + " was applied.");
                                     responsesReceived.put(tokens[3],0);
                                 }
                             }
@@ -369,7 +372,7 @@ public class Comunication {
                             }
                             synchronized (lock) {
                                 if(responsesReceivedForNacks.get(tokens[3])>=quorum){
-                                    System.out.println("Command was not applied.");
+                                    System.out.println("Command " + tokens[3] + " was not applied.");
                                     responsesReceivedForNacks.put(tokens[3],0);
                                 }                                
                             }

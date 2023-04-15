@@ -17,6 +17,7 @@ public class Client {
     private static int nServers;
         
     private static int faults=1;   
+    private static boolean accountCreated=false;   
 
     public static void main(String[] args) throws Exception {
         nServers=Integer.parseInt(args[1]);
@@ -50,11 +51,19 @@ public class Client {
         
         while(true){
             String message;
-            System.out.println("\nPlease, request an available option:\n");
-            System.out.print("CreateAccount_PubKey_initial Balance.\n");
-            System.out.print("CheckBalance_PubKey.\n");
-            System.out.print("Transfer_Source pubKey_Destination pubKey_Ammount.\n");
-            System.out.print("Exit.\n");
+            if(!accountCreated){
+                System.out.println("\nPlease, create an account:\n");
+                System.out.print("CreateAccount_PublicKey_InitialBalance.\n");
+                System.out.print("Exit.\n\n");
+                accountCreated = true;
+            }
+            else{
+                System.out.println("\nPlease, choose an option:\n");
+                System.out.print("CheckBalance_PublicKey.\n");
+                System.out.print("Transfer_SourcePublicKey_DestinationPublicKey_Ammount.\n");
+                System.out.print("Exit.\n\n");
+            }
+
             String command= myObj.nextLine();
 
             String request=parseCommand(command);
@@ -110,15 +119,22 @@ public class Client {
         //create format= CreateAccount + file to load the key + amount
         if(tokens[0].equals("CreateAccount")){
             if(tokens.length!=3){
-                System.out.println("CreateAccount needs 3 arguments");
+                System.out.println("\nCreateAccount needs 3 arguments");
                 return null;
             }
             String ammount =tokens[2];
             PublicKey pubAccountKey=Signer.loadPublicKeyFromFile(tokens[1],false);
+
+            if(pubAccountKey == null){
+                System.out.println("Please, enter a valid client name.");
+
+                return null;
+            }
             String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
+
             //initial balance
             if(Integer.parseInt(tokens[2])<=0){
-                System.out.println("CreateAccount needs a positive initial balance");
+                System.out.println("\nCreateAccount needs a positive initial balance");
                 return null;
             }
             return tokens[0]+"_"+publicKeyString+"_"+ammount;
@@ -126,7 +142,7 @@ public class Client {
 
         }else if(tokens[0].equals("Transfer")){
             if(tokens.length!=4){
-                System.out.println("Transfer needs 4 arguments");
+                System.out.println("\nTransfer needs 4 arguments");
                 return null;
             }
             String ammount=tokens[3];
@@ -138,7 +154,7 @@ public class Client {
             String publicDestString = Base64.getEncoder().encodeToString(pubDestKey.getEncoded());
 
             if(Integer.parseInt(tokens[3])<=0){
-                System.out.println("Transfer needs a positive ammount to be transfered");
+                System.out.println("\nTransfer needs a positive ammount to be transfered");
                 return null;
             }
 
@@ -147,7 +163,7 @@ public class Client {
             
         }else if(tokens[0].equals("StrongCheckBalance") || tokens[0].equals("WeakCheckBalance")){
             if(tokens.length!=2){
-                System.out.println("CheckBalance needs 2 arguments");
+                System.out.println("\nCheckBalance needs 2 arguments");
                 return null;
             }
 
@@ -159,8 +175,12 @@ public class Client {
             else
                 return tokens[0]+"_"+publicKeyString;
             
+        }else if(tokens[0].equals("Exit")){
+            System.exit(0);
+            return null;
+            
         }else{
-            System.out.println("Unknown command");
+            System.out.println("\nUnknown command");
             return null;
         }
 

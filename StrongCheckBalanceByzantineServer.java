@@ -28,11 +28,10 @@ import java.nio.file.InvalidPathException;
 
 
 
-public class Server {
+public class StrongCheckBalanceByzantineServer {
     
     private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
-    private static final int SNAPSHOT=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -73,7 +72,6 @@ public class Server {
     private static int lowestPort;
     private static DatagramSocket serverSocket;
     
-    
 
 
     public static void main(String[] args) throws Exception {
@@ -112,7 +110,7 @@ public class Server {
             leader=true;
             System.out.println("I am the leader server.");
         } 
-        System.out.println("I am server " + SERVER_PORT);
+        System.out.println("I am server " + SERVER_PORT + " and I am byzantine. When a Client requests their Strong Check Balance, I'll always answer 1234!!");
 
         
 
@@ -249,48 +247,32 @@ public class Server {
             if(tokens[4].equals("WeakCheckBalance")){
 
                 System.out.println("tokens "+tokens[2]);
-                Account account = systemAccounts.get(tokens[2]);
-                byte[] hash=account.getAccountHash();
+                Account aliceAccount = systemAccounts.get(tokens[2]);
+                byte[] aliceHash=aliceAccount.getAccountHash();
 
                 
 
-                MerkleTree.MerkleProof proof = merkleTree.getProof(hash);
+                MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
 
                 boolean oi=MerkleTree.verifyProof( proof);
 
                 System.out.println("proof "+oi);
-                String siblings="";
-                String left="";
-                int i=0;
-                for(boolean isleft: proof.getLefts()){
-                    if(i==proof.getSiblingHashes().length)
-                        break;
-                    
-                    if(isleft){
-                        left+="L-";
-                    }else{
-                        left+="R-";
-                    }
-                    
-                    i++;
-                }
-                for(byte[] sibling : proof.getSiblingHashes()){
-                    siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
-                }
-                String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
-                                        Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                           "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
-                
+                /*String proofEncoded=Base64.getEncoder().encodeToString(proof.getLeafHash())+
+                                    Base64.getEncoder().encodeToString(proof.getSiblingHashes())+
+                                    Base64.getEncoder().encodeToString(proof.getLefts().getBytes())+
+                                    Base64.getEncoder().encodeToString(proof.getRootHash());*/
                 String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+proofEncoded ;
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
                 
-                System.out.println("prooooof "+response);
+                /* 
+                Integer value = systemAccounts.get(tokens[2]).getValue();
+                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);         
+    
+                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);*/
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
-
-                consensus_started=false;
                 return;
             }
 
@@ -750,7 +732,7 @@ public class Server {
                 if(Signer.getPublicKey(client).equals(publicKey)){
                     if(systemAccounts.containsKey(client)){
                         
-                       balance=systemAccounts.get(client).getValue();
+                       balance=1234;
                         
                         state="_ACK_";
                     }
@@ -836,11 +818,8 @@ public class Server {
         }
 
 
-        //make a snapshot
-        if(consensus_instance%SNAPSHOT==0){
-            merkleTree= new MerkleTree(systemAccounts);
-        }
-            
+        //send signed state to other replicas
+        merkleTree= new MerkleTree(systemAccounts);
 
         
         

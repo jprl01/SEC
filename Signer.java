@@ -33,8 +33,9 @@ public class Signer {
             if(save)
                 publicKeys.put(name, pubk);
             
-        }catch(IOException | SecurityException  |InvalidPathException e){
-            e.printStackTrace();
+        }catch(IOException | SecurityException |InvalidPathException e){
+            // e.printStackTrace();
+            System.out.println("The client " + name + " is not known by the system.");
         }
         return pubk;
         
@@ -94,7 +95,6 @@ public class Signer {
         System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str.split("\n")[0]);
 
         
 
@@ -117,7 +117,6 @@ public class Signer {
 
 
 
-        System.out.println("Signature verifies: " + verifies+"\n");
 
         if(!verifies){
             return tokens[0]+"_NACK";

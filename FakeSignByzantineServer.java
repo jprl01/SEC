@@ -28,11 +28,10 @@ import java.nio.file.InvalidPathException;
 
 
 
-public class Server {
+public class FakeSignByzantineServer {
     
     private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
-    private static final int SNAPSHOT=1;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
@@ -73,7 +72,6 @@ public class Server {
     private static int lowestPort;
     private static DatagramSocket serverSocket;
     
-    
 
 
     public static void main(String[] args) throws Exception {
@@ -110,7 +108,7 @@ public class Server {
         
         if(lowestPort==SERVER_PORT){
             leader=true;
-            System.out.println("I am the leader server.");
+            System.out.println("I am a byzantine leader server.");
         } 
         System.out.println("I am server " + SERVER_PORT);
 
@@ -207,7 +205,7 @@ public class Server {
 
                 //verify Id
                 if(!processIdRequest(tokens[2], idRequest)){
-                    System.out.println(" comando errado");
+                    System.out.println(" comando errado1");
                     return;
                 }else{
                     System.out.println(" comando certo");
@@ -231,8 +229,53 @@ public class Server {
                     
                     if(leader){
 
-                 
-                            queue.add(receivedMessage);
+                            System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                            System.out.println("Forging");
+                            System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                            //extrair mensagem enviada pelo cliente
+                            byte[] data = receivedMessage.getBytes();
+
+                            int separatorIndex = indexOf(data, (byte)'\n');
+    
+                            byte[] messageBytes = new byte[separatorIndex];
+                            byte[] signature = new byte[data.length-separatorIndex-1];
+                    
+                            System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                            System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+                    
+                            String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
+
+                            //carregar chave privada do servidor 1235
+                            String fileName = "1235Priv.key";
+                            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+                            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+                            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                            PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+                
+                            // privatekey = rsaPrivateKey;
+
+                            //assinatura com a chave do server bizantino
+                            Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+                            dsaForSign.initSign(rsaPrivateKey);
+                            dsaForSign.update(messageBytes);
+                           signature = dsaForSign.sign();
+                    
+                            messageBytes = (messageSentByClient+'\n').getBytes();
+                    
+                            
+                    
+                            String encodedString = Base64.getEncoder().encodeToString(signature);
+                    
+                            signature=encodedString.getBytes();
+                    
+                            
+                    
+                            data = new byte[messageBytes.length + signature.length];
+                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                            System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+                            
+                            queue.add(data.toString());
+
                        
                         
                     }
@@ -249,48 +292,32 @@ public class Server {
             if(tokens[4].equals("WeakCheckBalance")){
 
                 System.out.println("tokens "+tokens[2]);
-                Account account = systemAccounts.get(tokens[2]);
-                byte[] hash=account.getAccountHash();
+                Account aliceAccount = systemAccounts.get(tokens[2]);
+                byte[] aliceHash=aliceAccount.getAccountHash();
 
                 
 
-                MerkleTree.MerkleProof proof = merkleTree.getProof(hash);
+                MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
 
                 boolean oi=MerkleTree.verifyProof( proof);
 
                 System.out.println("proof "+oi);
-                String siblings="";
-                String left="";
-                int i=0;
-                for(boolean isleft: proof.getLefts()){
-                    if(i==proof.getSiblingHashes().length)
-                        break;
-                    
-                    if(isleft){
-                        left+="L-";
-                    }else{
-                        left+="R-";
-                    }
-                    
-                    i++;
-                }
-                for(byte[] sibling : proof.getSiblingHashes()){
-                    siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
-                }
-                String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
-                                        Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                           "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
-                
+                /*String proofEncoded=Base64.getEncoder().encodeToString(proof.getLeafHash())+
+                                    Base64.getEncoder().encodeToString(proof.getSiblingHashes())+
+                                    Base64.getEncoder().encodeToString(proof.getLefts().getBytes())+
+                                    Base64.getEncoder().encodeToString(proof.getRootHash());*/
                 String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+proofEncoded ;
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
                 
-                System.out.println("prooooof "+response);
+                /* 
+                Integer value = systemAccounts.get(tokens[2]).getValue();
+                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);         
+    
+                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);*/
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
-
-                consensus_started=false;
                 return;
             }
 
@@ -300,10 +327,64 @@ public class Server {
             
             if(leader){
                 
-                //System.out.println("\n\n\n\nAntes de adicionar à queue, mensagem é:\n");
-                //System.out.println(receivedMessage);  
-                // receivedMessage = 1001_Client_Joao_0_CreateAccount_MIIC...                
-                queue.add(receivedMessage);
+                System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                System.out.println("Forging");
+                System.out.println("\n\n\n\n\n\n\n\n\n\n");
+                System.out.println("Correct received message: ");
+                System.out.println(receivedMessage);
+                //extrair mensagem enviada pelo cliente
+                byte[] data = receivedMessage.getBytes();
+
+                int separatorIndex = indexOf(data, (byte)'\n');
+
+                byte[] messageBytes = new byte[separatorIndex];
+                byte[] signature = new byte[data.length-separatorIndex-1];
+        
+                System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+        
+                String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
+
+                System.out.println("Message sent by client:");
+                System.out.println(messageSentByClient);
+
+                //carregar chave privada do servidor 1235
+                String fileName = "1235Priv.key";
+                byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+                PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+    
+                // privatekey = rsaPrivateKey;
+
+                //assinatura com a chave do server bizantino
+                Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+                dsaForSign.initSign(rsaPrivateKey);
+                dsaForSign.update(messageBytes);
+                signature = dsaForSign.sign();
+        
+                messageBytes = (messageSentByClient+'\n').getBytes();
+        
+                
+        
+                String encodedString = Base64.getEncoder().encodeToString(signature);
+        
+                signature=encodedString.getBytes();
+        
+                
+        
+                data = new byte[messageBytes.length + signature.length];
+                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+                
+                System.out.println("Wrong signed message: ");
+                System.out.println(data);
+                String dataAsString = new String(data, StandardCharsets.UTF_8);
+
+                System.out.println(dataAsString);
+
+                queue.add(dataAsString);     
+                // queue.add(receivedMessage);
                 
 
                 System.out.println("queue "+queue.size());
@@ -476,31 +557,21 @@ public class Server {
 
                 //if not sent by client invalidate block
                 if(str.split("_")[1].equals("NACK")){
-                    System.out.println("\n\n\n\n\n\n\n\n Wrong sign!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                    System.out.println(str);
+                    System.out.println("\n\n\n\n\n\n\n\n Wrong sign!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
                     String response = String.valueOf(SERVER_PORT)+"_"+str;
                     byte[] sendData = Signer.sign(response);
                     DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("localhost"), socketPort);
                     serverSocket.send(sendPacket);
 
-                    String[] tokensRequest;
-
-                    try{
-                        tokensRequest= transactions[i].split("_");
-                    }
-                    catch(PatternSyntaxException e){
-                        System.out.println("Message format is incorret. Message will be ignored.");
-                        return;
-                    }
-                    String[] clientSource;
-                    if(clientsSource.containsKey(tokensRequest[2] + tokensRequest[3])){
-                        clientSource = clientsSource.get(tokensRequest[2] + tokensRequest[3]).split("_");;
-                        response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_NACK_" + tokensRequest[3];
-                        sendData = Signer.sign(response);
-                        sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
-                        serverSocket.send(sendPacket);
-                    }
                     System.out.println("\n\n\n\n\n#####");
                     System.out.println(transactions[i] + "\n\n\n\n\n");
+
+
+                    // response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
+                    // byte[] sendData = Signer.sign(response);
+                    // DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
+                    // serverSocket.send(sendPacket);
 
 
                     return;
@@ -836,11 +907,8 @@ public class Server {
         }
 
 
-        //make a snapshot
-        if(consensus_instance%SNAPSHOT==0){
-            merkleTree= new MerkleTree(systemAccounts);
-        }
-            
+        //send signed state to other replicas
+        merkleTree= new MerkleTree(systemAccounts);
 
         
         

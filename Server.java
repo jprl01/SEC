@@ -25,7 +25,7 @@ public class Server {
     private static final Object lockPrepare = new Object();
     private static final Object lockCommit = new Object();
     
-    private static int SERVER_PORT ;
+    private static int SERVER_PORT;
     private static int consensus_instance=0;
     private static int round=1;
     private static int nServers;

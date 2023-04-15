@@ -33,13 +33,9 @@ public class Signer {
                 publicKeys.put(name, pubk);
             
         }catch(IOException | SecurityException |InvalidPathException e){
-            // e.printStackTrace();
             System.out.println("The client " + name + " is not known by the system.");
         }
         return pubk;
-        
-        
-        
     }
 
     static void loadPrivateKeyFromFile(String name) throws Exception {
@@ -54,7 +50,6 @@ public class Signer {
         }catch(IOException | SecurityException  |InvalidPathException e){
             e.printStackTrace();
         }
-        
     }
 
     static byte[] sign(String message) throws Exception{
@@ -67,18 +62,13 @@ public class Signer {
 
         messageBytes = (message+'\n').getBytes();
 
-        
-
         String encodedString = Base64.getEncoder().encodeToString(signature);
 
         signature=encodedString.getBytes();
 
-        
-
         byte[] data = new byte[messageBytes.length + signature.length];
         System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
-
         
         return data;
     }
@@ -95,8 +85,6 @@ public class Signer {
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
 
-        
-
         String[] tokens= str.split("_");
         if(tokens[1].equals("Client"))
             publicKey=publicKeys.get(tokens[2]);
@@ -110,12 +98,7 @@ public class Signer {
         String sig = new String(signature);
         byte[] decodedBytes = Base64.getDecoder().decode(sig);
 
-
         boolean verifies = rsaForVerify.verify(decodedBytes);
-
-
-
-
 
         if(!verifies){
             return tokens[0]+"_NACK";
@@ -124,7 +107,6 @@ public class Signer {
     }
 
     public static int indexOf(byte[] array, byte value) {
-        
 
         for (int i = array.length - 1; i >= 0; i--) {
             if (array[i] == value) {
@@ -135,7 +117,6 @@ public class Signer {
         return -1;
     }
 
-    
 
     public static PrivateKey getPrivatekey() {
         return privatekey;

@@ -144,8 +144,6 @@ public class Client {
                 return null;
             }
             if(!tokens[1].equals(clientName)){
-                System.out.println(tokens[1]);
-                System.out.println(clientName);
                 System.out.println("\nClient name is wrong, please, repeat the request");
                 return null;
             }

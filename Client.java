@@ -5,17 +5,15 @@ import java.util.regex.PatternSyntaxException;
 
 
 public class Client {
-
     
     private static int messageId=0;
-    private static String clientName;
-    
     private static int nServers;
-        
     private static int faults=1;   
+    private static String clientName;
     private static boolean accountCreated=false;   
 
     public static void main(String[] args) throws Exception {
+
         nServers=Integer.parseInt(args[1]);
         faults = (nServers  - 1)/3; 
         
@@ -26,12 +24,12 @@ public class Client {
         clientName=args[0];
         
         String[] ports = new String[args.length-2];
+
         for(int i=2;i< args.length;i++){
             Signer.loadPublicKeyFromFile(args[i],true);   
             ports[i-2]=args[i];
 
             if(clientName.equals(args[i])){
-                
                 Signer.loadPrivateKeyFromFile(args[i]);
             }
         }
@@ -39,12 +37,6 @@ public class Client {
         Comunication.setPorts(ports);
         Scanner myObj = new Scanner(System.in); 
          
-         
-        
-        // Create a DatagramSocket
-        //DatagramSocket socket = new DatagramSocket();
-        
-        
         while(true){
             String message;
             if(!accountCreated){
@@ -63,6 +55,7 @@ public class Client {
             String command= myObj.nextLine();
 
             String request=parseCommand(command);
+
             if(request==null){
                continue;
             }
@@ -88,22 +81,14 @@ public class Client {
                     
                 }
             });
+
             thread.start();
-            
-            
-            
-
-        // Send the packet to the server
         }
-        
-        
-
-
-        
     }
 
     private static String parseCommand(String command) throws Exception{
         String[] tokens;
+
         try{
             tokens= command.split("_");
         }
@@ -112,7 +97,6 @@ public class Client {
             return null;
         }
 
-        //create format= CreateAccount + file to load the key + amount
         if(tokens[0].equals("CreateAccount")){
             if(tokens.length!=3){
                 System.out.println("\nCreateAccount needs 3 arguments");
@@ -128,15 +112,13 @@ public class Client {
             }
             String publicKeyString = Base64.getEncoder().encodeToString(pubAccountKey.getEncoded());
 
-            //initial balance
             if(Integer.parseInt(tokens[2])<=0){
                 System.out.println("\nCreateAccount needs a positive initial balance");
                 return null;
             }
             return tokens[0]+"_"+publicKeyString+"_"+ammount;
-           
-
-        }else if(tokens[0].equals("Transfer")){
+        }
+        else if(tokens[0].equals("Transfer")){
             if(tokens.length!=4){
                 System.out.println("\nTransfer needs 4 arguments");
                 return null;
@@ -155,9 +137,8 @@ public class Client {
             }
 
             return tokens[0]+"_"+publicSourceString+"_"+publicDestString+"_"+ammount;
-                
-            
-        }else if(tokens[0].equals("StrongCheckBalance") || tokens[0].equals("WeakCheckBalance")){
+        }
+        else if(tokens[0].equals("StrongCheckBalance") || tokens[0].equals("WeakCheckBalance")){
             if(tokens.length!=2){
                 System.out.println("\nCheckBalance needs 2 arguments");
                 return null;
@@ -177,17 +158,17 @@ public class Client {
             else
                 return tokens[0]+"_"+publicKeyString;
             
-        }else if(tokens[0].equals("Exit")){
+        }
+        else if(tokens[0].equals("Exit")){
             System.exit(0);
             return null;
-            
-        }else{
+        }
+        else{
             System.out.println("\nUnknown command");
             return null;
         }
-
-        //return command;
     }
+
     public static int incMessageId(){
         
         return messageId++;

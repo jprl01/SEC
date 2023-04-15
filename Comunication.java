@@ -1,14 +1,20 @@
-import java.util.*;
-import java.net.*;
-
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
-//import MerkleTree.MerkleProof;
 
 
 public class Comunication {
-    static int NServers;
 
+    static int NServers;
     static int messageId=0;
     static int nounce=1000;
     static int SERVER_PORT;
@@ -18,54 +24,39 @@ public class Comunication {
     private static Map<String, List<String>> portsAcks = new HashMap<>();
     private static Map<String,List<Integer>> readsValues = new HashMap<>();
     private static Map<String,Integer> responsesReceived =new HashMap<>();
-
     private static Map<String,Integer> responsesReceivedForNacks =new HashMap<>();
-
-    //private static int neededResponses=0;
-    private static String[] portsS;
     private static int quorum;
     private static int Byzantinequorum;
+    private static String[] portsS;
 
     public static void sendMessage(String message, String port, int id) throws Exception{
         int messageNounce;
-        //int id;
+
         synchronized (lock) {
-            
             messageNounce=nounce;            
             nounce++;
-            
-            
-            
         }
+
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
-        
         byte[] messageBytes= Signer.sign(message);
-        
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
-       
         socket.setSoTimeout(timeout);
         
-        
         while (!responseReceived) {
-            // Send the packet to the server
+
             socket.send(packet);
             
-            
-            
-            
-            // Create a packet to receive the response from the server
             byte[] receiveData = new byte[65000];
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 
             try {
                 
-                // Wait for the response from the server
                 socket.receive(receivePacket);        
                 
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());            
@@ -73,25 +64,13 @@ public class Comunication {
                 String[] tokens;
                 
                 tokens= response.split("_");
-                
-                
-                
-                
-                
-                
+
                 response=Signer.verifySign(response.getBytes());
-                
-                    
 
-                //verify freshness
-
-                
                 if(Integer.parseInt(tokens[1])!=messageNounce){
                     System.out.println("Trying to corrupt the message");
                     return;
-                }
-                else{
-                }                   
+                }                
                 
                 responseReceived = true;
             } catch (SocketTimeoutException e) {
@@ -114,56 +93,43 @@ public class Comunication {
             System.out.println("No response received ");
         }
         socket.close();
-        
-            
-         
     }
 
     public static void broadcast(String message, String[] ports) throws Exception{
         int i=0;
         int id;
+
         synchronized (lock) {
-            
             id=messageId;
-            
             messageId++;
         }
+
         for (String port : ports) {
             if(i==NServers){
                 break;
             }
             i++;
-            
-            
-
 
             final String arg = port;
-
-            
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
 
                     try{
-                        
                         sendMessage(message,arg,id);
-                        
                     }catch(Exception e){
-                        System.out.println("erro");
                         e.printStackTrace();
                     }
                     
                 }
             });
             thread.start();
-            
-            
-            
         }
     }
 
     public static void sendMessageClient(String message, String port,int CheckBalance) throws Exception{
         int mult=1;
         int messageNounce;
+
         synchronized (lock) {
             messageNounce=nounce;
             nounce++;
@@ -174,41 +140,29 @@ public class Comunication {
         DatagramSocket socket = new DatagramSocket();
         int timeout=5000;
         String sendMessage= String.valueOf(messageNounce)+"_"+message;
-        byte[] messageBytes= Signer.sign(sendMessage);
-        System.out.println("Message bytes sent by the client: " + sendMessage);
-
-
-        System.out.println("Message bytes sent by the client bytes: " + messageBytes);
-        
+        byte[] messageBytes= Signer.sign(sendMessage);        
         InetAddress serverAddress = InetAddress.getByName("localhost");
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, serverAddress, Integer.parseInt(port));
         
-        // Send the packet to the server
         socket.setSoTimeout(timeout);
         
-        
         while (!responseReceived) {
-            // Send the packet to the server
+
             socket.send(packet);
             
-            
-            
-            // Create a packet to receive the response from the server
             byte[] receiveData = new byte[1024];
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 
             try {
                 
-                // Wait for the response from the server
                 socket.receive(receivePacket);
                 
-                // Print the response from the server
                 String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 
                 
                 response=Signer.verifySign(response.getBytes());
-                // String[] tokens= response.split("_");
                 String[] tokens;
+
                 try{
                     tokens= response.split("_");
                 }
@@ -219,9 +173,7 @@ public class Comunication {
 
                 boolean noDupliactedPort = false;
 
-                // tokens[3] = consensus instance
                 synchronized(lock){
-                    //each server can only send one response
                     if(portsAcks.containsKey(tokens[3])){
                         
                         List<String> acksReceived = portsAcks.get(tokens[3]);
@@ -240,7 +192,6 @@ public class Comunication {
                         noDupliactedPort = true;                    
                     }
                 }
-                
 
                 if(noDupliactedPort){
                     
@@ -285,10 +236,9 @@ public class Comunication {
                                         auxValue=values;
                                     }
                                     if(allSame){
-                                        // System.out.println(tokens[0]+"_"+tokens[1]+"_"+tokens[2]+"_"+tokens[3]);
-
                                         System.out.println("Request " + tokens[3] +". By performing a Strong Check Balance, you have the following value in your account: " + tokens[4] + "\n");
-                                    }else{
+                                    }
+                                    else{
                                         //if some value is different ask for consensus
 
                                         int id =Client.incMessageId();
@@ -302,24 +252,23 @@ public class Comunication {
                                                     
                                                     
                                                 }catch(Exception e){
-                                                    System.out.println("erro");
                                                     e.printStackTrace();
                                                 }
                                                 
                                             }
                                         });
                                         thread.start();
-                                        
-
                                     }
                                 }
 
-                            }else if(CheckBalance==2){
+                            }
+                            else if(CheckBalance==2){
                                 //weak reads only needs one message
                                 if(responsesReceived.get(tokens[3])<0){
                                     responseReceived = true;
                                     return;
-                                }else{
+                                }
+                                else{
                                     responsesReceived.put(tokens[3],-10);
                                 }
                                 
@@ -332,30 +281,25 @@ public class Comunication {
                                 proof.setLeafHash(leafHash);
                                 proof.setRootHash(rootHash);
                                 int i=0;
+
                                 for(String sibling: tokens[8].split("-")){
-                                    System.out.println("sib"+sibling);
                                     if(sibling==""){
                                         break;
                                     }
-                                    //System.out.println("left "+);
+
                                     if(tokens[9].split("-")[i].equals("L")){
                                         proof.addSiblingHash(Base64.getDecoder().decode(sibling), true);
-                                    }else{
+                                    }
+                                    else{
                                         proof.addSiblingHash(Base64.getDecoder().decode(sibling),false);
                                     }
                                     i++;
                                 }
                                 if(MerkleTree.verifyProof(proof)){
-                                    // System.out.println(tokens[0]+"_"+tokens[1]+"_"+tokens[2]+"_"+tokens[3]+"_"+tokens[4]+"_"+tokens[5]+"_"+tokens[6]+"_"+tokens[7]+"_"+tokens[8]+"_");
                                     System.out.println("Request " + tokens[3] +". By performing a Weak Check Balance, you have the following value in your account: " + tokens[5] + "\n");
                                 }              
-                                
-                                
-                                System.out.println(response);
-                                
-                                
-
-                            }else{
+                            }
+                            else{
                                 if(responsesReceived.get(tokens[3])>=quorum){
                                     System.out.println("Command " + tokens[3] + " was applied.");
                                     responsesReceived.put(tokens[3],0);
@@ -376,24 +320,15 @@ public class Comunication {
                                     responsesReceivedForNacks.put(tokens[3],0);
                                 }                                
                             }
-
-                            
                         }
                     }                    
                     responseReceived = true;
-                    
                 }
-                
-
-
             } catch (SocketTimeoutException e) {
                 // If a timeout occurs, retry sending the message
                 mult++;
                 socket.setSoTimeout(timeout*mult);
                 System.out.println("Timeout occurred, retrying... to "+port+" message: "+message);
-                
-                
-                
             }
         }
         
@@ -401,17 +336,14 @@ public class Comunication {
             System.out.println("No response received ");
         }
         socket.close();
-        
-            
-        
     }
 
     public static void broadcastClient(String message, String[] ports, int CheckBalance) throws Exception{
         int i=0;
+
         for (String port : ports) {
             if(i==NServers)
                 break;
-            
 
             final String arg = port;
             Thread thread = new Thread(new Runnable()  {
@@ -419,17 +351,12 @@ public class Comunication {
                     try{
                         sendMessageClient(message,arg,CheckBalance);
                     }catch(Exception e){
-                        System.out.println("erro");
                         e.printStackTrace();
                     }
-                    
                 }
             });
             thread.start();
             i++;
-            
-            
-            
         }
     }
 

@@ -171,6 +171,10 @@ public class Client {
 
             return tokens[0]+"Phase1_"+publicKeyString;
             
+        }else if(tokens[0].equals("Exit")){
+            System.exit(0);
+            return null;
+            
         }else{
             System.out.println("\nUnknown command");
             return null;

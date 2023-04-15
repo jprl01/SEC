@@ -16,7 +16,7 @@ import java.util.regex.PatternSyntaxException;
 
 public class Server {
     
-    private static final int BLOCK_SIZE=1;
+    private static final int BLOCK_SIZE=4;
     private static final int FEE=1;
     private static final int SNAPSHOT=1;
     private static final int BUFFER_SIZE = 65000;
@@ -76,7 +76,7 @@ public class Server {
 
         if(lowestPort==SERVER_PORT){
             leader=true;
-            System.out.println("I am the leader server.");
+            System.out.println("I am the leader server");
         } 
         System.out.println("I am server " + SERVER_PORT);
 
@@ -170,7 +170,6 @@ public class Server {
 
             if(tokens[4].equals("WeakCheckBalance")){
 
-                System.out.println("tokens "+tokens[2]);
                 Account account = systemAccounts.get(tokens[2]);
                 byte[] hash=account.getAccountHash();
 
@@ -317,7 +316,6 @@ public class Server {
                     }
                     consensus(block,ports);
                 }catch(Exception e){
-                    System.out.println("erro");
                     e.printStackTrace();
                 }
             }
@@ -561,7 +559,7 @@ public class Server {
                         systemAccounts.put(client,account);
                         
                         state="_ACK_";
-                        System.out.println("Command was executed.");
+                        System.out.println("Command was executed");
                     }
                 }
             }
@@ -577,13 +575,12 @@ public class Server {
                        balance=systemAccounts.get(client).getValue();
                         
                         state="_ACK_";
-                        System.out.println("Command was executed.");
+                        System.out.println("Command was executed");
                     }
                 }
             }
             else if(type.equals("Transfer")){
                 String amountToTransfer=tokens[7].split("\n")[0];
-                System.out.println("Amount to transfer: " + amountToTransfer);
 
                 // source client
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
@@ -616,7 +613,7 @@ public class Server {
                             systemAccounts.replace("Leader", leaderAccount);
 
                             state="_ACK_";
-                            System.out.println("Command was executed.");
+                            System.out.println("Command was executed");
                         }
                     }
                 }

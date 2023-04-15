@@ -1,32 +1,24 @@
-import java.net.*;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.regex.PatternSyntaxException;
-
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.security.KeyFactory;
-
-import java.security.PublicKey;
-import java.security.Signature;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
-import java.io.IOException;
-import java.nio.file.InvalidPathException;
-
-
-
+import java.util.Queue;
+import java.util.regex.PatternSyntaxException;
 
 public class FakeSignByzantineServer {
     
@@ -51,17 +43,9 @@ public class FakeSignByzantineServer {
     
     private static Map<String,Account> systemAccounts = new HashMap<>();
     private static MerkleTree merkleTree=null;
-    //private static Map<String,String> snapshots = new HashMap<>();
-    
 
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
-
-    
-    
-    
-    
-    
     
     private static int consensus_instance=0;
     private static boolean consensus_started=false;
@@ -72,10 +56,7 @@ public class FakeSignByzantineServer {
     private static int lowestPort;
     private static DatagramSocket serverSocket;
     
-
-
     public static void main(String[] args) throws Exception {
-        
         
         nServers=Integer.parseInt(args[0]);
 
@@ -85,26 +66,22 @@ public class FakeSignByzantineServer {
         
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
-         ports = new String[args.length-2];        
-        
+        ports = new String[args.length-2];        
 
         Comunication.setServerPort(SERVER_PORT);
         Comunication.setNServers(nServers);
         
-        // Load RSA keys from files
         for(int i=2;i< args.length;i++){
             Signer.loadPublicKeyFromFile(args[i],true);
             if(args[1].equals(args[i])){
                 Signer.loadPrivateKeyFromFile(args[1]);
             }
             ports[i-2]=args[i];
-            
-            
         }
+
         PublicKey leaderPublicKey = Signer.getPublicKey(String.valueOf(lowestPort));
         Account account = new Account(leaderPublicKey, "Leader", "0");
         systemAccounts.put("Leader",account);
-
         
         if(lowestPort==SERVER_PORT){
             leader=true;
@@ -112,11 +89,7 @@ public class FakeSignByzantineServer {
         } 
         System.out.println("I am server " + SERVER_PORT);
 
-        
-
-        // Create a DatagramSocket
         serverSocket = new DatagramSocket(SERVER_PORT);
-               
         
         try{
             while(true){
@@ -125,36 +98,21 @@ public class FakeSignByzantineServer {
                 byte[] data = new byte[BUFFER_SIZE];
                 DatagramPacket receivePacket = new DatagramPacket(data, data.length);
                 
-                
                 serverSocket.receive(receivePacket);
                 Thread thread = new Thread(new Runnable()  {
                     public void run()  {
                         try{
-                            
-
-                                process(receivePacket);
-                            
-                            
+                            process(receivePacket);
                         }catch(Exception e){
-                            System.out.println("erro");
                             e.printStackTrace();
                         }
-                        
                     }
                 });
                 thread.start();
-                    
-                
-                
             }
         }catch(SocketException e){
-            System.out.println("error with socket");
             serverSocket.close();
         }
-        
-        
-        
-        
     }
 
     public static void process(DatagramPacket receivePacket) throws Exception{
@@ -162,11 +120,9 @@ public class FakeSignByzantineServer {
         String command;
         DatagramPacket sendPacket;
         int clientPort = receivePacket.getPort();
-
             
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-        
 
         String str = Signer.verifySign(receivedMessage.getBytes());
         
@@ -178,7 +134,6 @@ public class FakeSignByzantineServer {
             return;
         }
         
-        //signature false
         if(tokens[1].equals("NACK")){
             String response = String.valueOf(SERVER_PORT)+"_"+str;
                     
@@ -187,29 +142,17 @@ public class FakeSignByzantineServer {
             serverSocket.send(sendPacket);
             return;
         }
-        
-        
-        System.out.println("%%%%%%%%%%%%%%%%");
-        //System.out.println(str.split("\n")[0]);
-        System.out.println("%%%%%%%%%%%%%%%%");
 
         if(tokens[1].equals("Client")){
             
-            //clientsSource.put(tokens[2],clientAddress.getHostAddress()+"_"+clientPort);
             int idRequest=Integer.parseInt(tokens[3]);
             String clientName = tokens[2];
             clientsSource.put(tokens[2]+idRequest,clientAddress.getHostAddress()+"_"+clientPort+"_"+tokens[0]);
-            //System.out.println("port para enviar: "+clientPort+"pedido id: "+tokens[3]);
                       
             synchronized(lock){
 
-                //verify Id
                 if(!processIdRequest(tokens[2], idRequest)){
-                    System.out.println(" comando errado1");
                     return;
-                }else{
-                    System.out.println(" comando certo");
-                    
                 }
 
                 if(tokens[4].equals("StrongCheckBalancePhase1")){
@@ -226,13 +169,8 @@ public class FakeSignByzantineServer {
 
                 if(consensus_started){  
 
-                    
                     if(leader){
 
-                            System.out.println("\n\n\n\n\n\n\n\n\n\n");
-                            System.out.println("Forging");
-                            System.out.println("\n\n\n\n\n\n\n\n\n\n");
-                            //extrair mensagem enviada pelo cliente
                             byte[] data = receivedMessage.getBytes();
 
                             int separatorIndex = Signer.indexOf(data, (byte)'\n');
@@ -245,97 +183,56 @@ public class FakeSignByzantineServer {
                     
                             String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
 
-                            //carregar chave privada do servidor 1235
                             String fileName = "1235Priv.key";
                             byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
                             PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
                             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                             PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
                 
-                            // privatekey = rsaPrivateKey;
-
-                            //assinatura com a chave do server bizantino
                             Signature dsaForSign = Signature.getInstance("SHA1withRSA");
                             dsaForSign.initSign(rsaPrivateKey);
                             dsaForSign.update(messageBytes);
-                           signature = dsaForSign.sign();
+                            signature = dsaForSign.sign();
                     
                             messageBytes = (messageSentByClient+'\n').getBytes();
-                    
-                            
                     
                             String encodedString = Base64.getEncoder().encodeToString(signature);
                     
                             signature=encodedString.getBytes();
-                    
-                            
                     
                             data = new byte[messageBytes.length + signature.length];
                             System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
                             System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
                             
                             queue.add(data.toString());
-
-                       
-                        
                     }
                     return;
                 }
                 if(leader){
                     consensus_started=true;
                 }
-                
-                
             }       
-            
-
             if(tokens[4].equals("WeakCheckBalance")){
 
-                System.out.println("tokens "+tokens[2]);
                 Account aliceAccount = systemAccounts.get(tokens[2]);
                 byte[] aliceHash=aliceAccount.getAccountHash();
 
-                
-
                 MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
 
-                boolean oi=MerkleTree.verifyProof( proof);
-
-                System.out.println("proof "+oi);
-                /*String proofEncoded=Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                    Base64.getEncoder().encodeToString(proof.getSiblingHashes())+
-                                    Base64.getEncoder().encodeToString(proof.getLefts().getBytes())+
-                                    Base64.getEncoder().encodeToString(proof.getRootHash());*/
                 String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
                 String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
-                
-                /* 
-                Integer value = systemAccounts.get(tokens[2]).getValue();
-                System.out.println("Client " + tokens[2] + " has this value in the account: " + value);         
-    
-                System.out.println("\n\n\n\nMessage sent to client with ACK: " + response);*/
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
                 return;
             }
-
-
-            
-
             
             if(leader){
                 
-                System.out.println("\n\n\n\n\n\n\n\n\n\n");
-                System.out.println("Forging");
-                System.out.println("\n\n\n\n\n\n\n\n\n\n");
-                System.out.println("Correct received message: ");
-                System.out.println(receivedMessage);
-                //extrair mensagem enviada pelo cliente
                 byte[] data = receivedMessage.getBytes();
 
-                int separatorIndex = indexOf(data, (byte)'\n');
+                int separatorIndex = Signer.indexOf(data, (byte)'\n');
 
                 byte[] messageBytes = new byte[separatorIndex];
                 byte[] signature = new byte[data.length-separatorIndex-1];
@@ -345,19 +242,12 @@ public class FakeSignByzantineServer {
         
                 String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
 
-                System.out.println("Message sent by client:");
-                System.out.println(messageSentByClient);
-
-                //carregar chave privada do servidor 1235
                 String fileName = "1235Priv.key";
                 byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
                 PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
     
-                // privatekey = rsaPrivateKey;
-
-                //assinatura com a chave do server bizantino
                 Signature dsaForSign = Signature.getInstance("SHA1withRSA");
                 dsaForSign.initSign(rsaPrivateKey);
                 dsaForSign.update(messageBytes);
@@ -365,29 +255,18 @@ public class FakeSignByzantineServer {
         
                 messageBytes = (messageSentByClient+'\n').getBytes();
         
-                
-        
                 String encodedString = Base64.getEncoder().encodeToString(signature);
         
                 signature=encodedString.getBytes();
-        
-                
         
                 data = new byte[messageBytes.length + signature.length];
                 System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
                 System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
                 
-                System.out.println("Wrong signed message: ");
-                System.out.println(data);
                 String dataAsString = new String(data, StandardCharsets.UTF_8);
 
-                System.out.println(dataAsString);
-
                 queue.add(dataAsString);     
-                // queue.add(receivedMessage);
-                
 
-                System.out.println("queue "+queue.size());
                 if(queue.size()==BLOCK_SIZE){
                     
                     sendBlock();
@@ -396,8 +275,6 @@ public class FakeSignByzantineServer {
                     consensus_started=false;
                 }
             }
-                
-   
             
         }else{
 
@@ -413,67 +290,43 @@ public class FakeSignByzantineServer {
             
             String senderPort = tokens[0];
             
-            
-            
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
             byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             serverSocket.send(sendPacket);
-              
-            
-
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
                         boolean leaderSent=false;
                         if(lowestPort==Integer.parseInt(tokens[0]))
                             leaderSent=true;
-                        System.out.println("analysing command "+command.split("\n")[0]);
                         analyse_command(command,ports,leaderSent, senderPort,receivePacket.getPort());
                         
                     }catch(Exception e){
-                        System.out.println("erro");
                         e.printStackTrace();
                     }
                     
                 }
             });
             thread.start();
-            
-
-            
         }
 
     }
     private static boolean processIdRequest(String client, int idRequest){
         
-        //see if command is the expected:
-        
         if(!idRequests.containsKey(client)){
                     
             if(idRequest==0){
-                System.out.println(" comando certo");
-                
                 idRequests.put(client,1);
-                
             }                            
             else{
-                System.out.println(" comando errado");
-                
                 return false;
             }
-                
         }
         else if(idRequests.get(client)==idRequest ){
-            System.out.println("comando certo");
-            
             idRequests.put(client,idRequest+1);
-            
-            
         }
         else{
-            System.out.println(" comando errado");
-            
             return false;
         }
 
@@ -482,7 +335,6 @@ public class FakeSignByzantineServer {
 
     private static void sendBlock() throws Exception{
         
-        //append n commands (BLOCK_SIZE) to a block and start a consensus instance
         Thread thread = new Thread(new Runnable()  {
             
             public void run()  {
@@ -501,36 +353,17 @@ public class FakeSignByzantineServer {
                         
                         block+=" "+request;
                         i++;
-                        
-                        
-                            
                     }
-                
-                    
                     consensus(block,ports);
-                    
-                    
                 }catch(Exception e){
-                    System.out.println("erro");
                     e.printStackTrace();
                 }
-                
-                
-                
             }
         });
         thread.start();
     }
 
-    
-
     private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort) throws Exception{
-        System.out.println("\n\n####################");
-        System.out.println(command);
-        System.out.println("Sender port: " + senderPort);
-        System.out.println("####################\n\n");
-
-        // String[] tokens= command.split("_");
         String[] tokens;
         try{
             tokens= command.split("_");
@@ -540,11 +373,9 @@ public class FakeSignByzantineServer {
             return;
         }
         
-        
         if(tokens[0].equals("PRE-PREPARE") && tokens[1].equals(String.valueOf(consensus_instance)) && leaderSent){
             
             command=command.substring(12);
-
             
             String block=command.substring(tokens[1].length()+tokens[2].length()+2);
 
@@ -557,36 +388,20 @@ public class FakeSignByzantineServer {
 
                 //if not sent by client invalidate block
                 if(str.split("_")[1].equals("NACK")){
-                    System.out.println(str);
-                    System.out.println("\n\n\n\n\n\n\n\n Wrong sign!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+
                     String response = String.valueOf(SERVER_PORT)+"_"+str;
                     byte[] sendData = Signer.sign(response);
                     DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("localhost"), socketPort);
                     serverSocket.send(sendPacket);
 
-                    System.out.println("\n\n\n\n\n#####");
-                    System.out.println(transactions[i] + "\n\n\n\n\n");
-
-
-                    // response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
-                    // byte[] sendData = Signer.sign(response);
-                    // DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
-                    // serverSocket.send(sendPacket);
-
-
                     return;
-                        
                 }
-                
-
             }
 
             String prepare="PREPARE_"+command;
             
             System.out.println("Broadcasting PREPARE");
             Comunication.broadcast(prepare,ports);
-            
-            
         }
         else if(tokens[0].equals("PREPARE") && tokens[1].equals(String.valueOf(consensus_instance))){
             boolean broadcast=false;
@@ -624,13 +439,8 @@ public class FakeSignByzantineServer {
                     }
                     consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests);
                     
-                    
-                    
-                    
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-                        
-                        
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
                     }
@@ -638,11 +448,7 @@ public class FakeSignByzantineServer {
             }
             if(broadcast){
                 Comunication.broadcast(commit, ports);
-                
             }
-                
-            
-            
         }
         else if(tokens[0].equals("COMMIT") && tokens[1].equals(String.valueOf(consensus_instance))){
             boolean decide=false;
@@ -678,32 +484,19 @@ public class FakeSignByzantineServer {
                     }
                     consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],requests); 
                     
-                    
-                    System.out.println("commits received "+consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5]));
                     if(consensusValue.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValue.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
                         System.out.println("Deciding COMMIT");
                         decide=true;
-                        
                     }
                 }
-
-
             }
             if(decide)
                 decide(command);
-            
-            
-        }else{
-            System.out.println("Format not expected consensus"+consensus_instance);
         }
     }
 
     private static void decide(String command) throws Exception{
-        
-        
-        
-        
         parseCommand(command);
         
         consensus_instance++;
@@ -712,49 +505,31 @@ public class FakeSignByzantineServer {
 
     }
 
-
     public static void commmandsQueue() throws Exception{
         if(queue.size()>=BLOCK_SIZE && leader){
-            System.out.println("There are BLOCKS to run");
             sendBlock();
-            
-            
-            
         }
         else{
-            System.out.println("Nothing to update");
             consensus_started=false;
         }
     }
     
-
     public static void start( String message,String[] ports) throws Exception{
         
         if(leader){
             String start ="PRE-PREPARE_"+String.valueOf(consensus_instance)+"_"+ String.valueOf(round)+"_"+message;
-            
-
             Comunication.broadcast(start, ports);
-            
-            
         }
-        
     }
-
-    
-   
 
     private static void consensus (String message, String[] ports) throws Exception{
         start(message,ports);
-
-        
     }
 
     private static void parseCommand (String command) throws Exception{
-        //2_1_Joao_1_adeus
         
         String state="_NACK_";
-        System.out.println("deciding block "+command);
+        System.out.println("Deciding block");
         String[] tokens;
         
         try{
@@ -764,6 +539,7 @@ public class FakeSignByzantineServer {
             System.out.println("Message format is incorret. Message will be ignored.");
             return;
         }
+
         command=command.substring(tokens[0].length()+tokens[1].length() +2);
 
         String transactions[]=command.split(" ");
@@ -779,9 +555,6 @@ public class FakeSignByzantineServer {
                 System.out.println("Message format is incorret. Message will be ignored.");
                 continue;
             }
-            System.out.println("\n\n\n\n\n###########################");
-            System.out.println(transactions[i]);
-            System.out.println("###########################\n\n\n\n\n");
 
             String client=tokens[2];
             String type=tokens[4];
@@ -807,32 +580,23 @@ public class FakeSignByzantineServer {
                         
                         state="_ACK_";
                     }
-
                 }
 
-                // System.out.println("account "+systemAccounts.get(client).getValue());
             }else if(type.equals("StrongCheckBalancePhase2")){
                 
-                //System.out.println("alalalla\n"+tokens[5]);
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5].split("\n")[0]);
                 X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 PublicKey publicKey = keyFactory.generatePublic(keySpec);
                 if(Signer.getPublicKey(client).equals(publicKey)){
                     if(systemAccounts.containsKey(client)){
-                        
                        balance=systemAccounts.get(client).getValue();
-                        
                         state="_ACK_";
                     }
-
                 }
 
             }else if(type.equals("Transfer")){
-                //System.out.println("\n\n\n\n\n\n\n\n\n Entrou no transfer!\n\n\n\n\n");
                 String amountToTransfer=tokens[7].split("\n")[0];
-                System.out.println("Amount to transfer: " + amountToTransfer);
-
 
                 // source client
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5]);
@@ -846,46 +610,29 @@ public class FakeSignByzantineServer {
                 keyFactory = KeyFactory.getInstance("RSA");
                 PublicKey destinationPublicKey = keyFactory.generatePublic(keySpec);
                 String destinationName = MerkleTree.getName(destinationPublicKey);
-                System.out.println("Destination name: "+ destinationName);
 
                 if(Signer.getPublicKey(client).equals(sourcePublicKey)){
-                    System.out.println("1!");
-
                     if(Integer.parseInt(amountToTransfer)>=0 && systemAccounts.containsKey(client) && systemAccounts.containsKey(destinationName)){
-                        System.out.println(" 2!");
-
                         Account sourceAccount = systemAccounts.get(client);
                         Integer sourceAccountValue = sourceAccount.getValue();
 
                         if(sourceAccountValue >= (Integer.parseInt(amountToTransfer) + FEE)){
-                            System.out.println(" 3!");
-
                             sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
-                            //System.out.print("Client " + client + " has in account " + sourceAccount.getValue());
                             systemAccounts.replace(client, sourceAccount);
 
                             Account destinationAccount = systemAccounts.get(destinationName);
                             destinationAccount.setValue(destinationAccount.getValue()+Integer.parseInt(amountToTransfer));
-                            //System.out.print("Client " + destinationName + " has in account " + destinationAccount.getValue());
                             systemAccounts.replace(destinationName, destinationAccount);
 
-    
                             //paying fee to the leader
                             Account leaderAccount = systemAccounts.get("Leader");
                             leaderAccount.setValue(leaderAccount.getValue()+ FEE);
                             systemAccounts.replace("Leader", leaderAccount);
 
-                            //System.out.println("\n\n\n\n\n\n\n\nFez transferencia!\n\n\n\n\n");
                             state="_ACK_";
-
                         }
-
-
                     }
-
                 }
-
-                // System.out.println("account "+systemAccounts.get(client).getValue());
             }
             
             response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+state + idRequest;
@@ -893,47 +640,18 @@ public class FakeSignByzantineServer {
                 response +="_"+balance;
             }
             
-            
-
-            System.out.println("\n\n\n\nMessage sent to client : " + response);
-            
             byte[] sendData = Signer.sign(response);
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
             serverSocket.send(sendPacket);
-
-            
-            
-
         }
-
 
         //send signed state to other replicas
         merkleTree= new MerkleTree(systemAccounts);
-
-        
-        
-        
-        
-        
     }
-
     
     public static int getLowestPort(){
         return lowestPort;
     }
-
-    private static int indexOf(byte[] array, byte value) {
-        
-
-        for (int i = array.length - 1; i >= 0; i--) {
-            if (array[i] == value) {
-                return i;
-                
-            }
-        }
-        return -1;
-    }
-
 }
 
 

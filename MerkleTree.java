@@ -1,23 +1,19 @@
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.util.*;
-import java.nio.ByteBuffer;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class MerkleTree {
+
     public static Map<String, Account> accounts;
-    
     private static List<MerkleNode> roots;
       
-
     public MerkleTree(Map<String, Account> Accounts) throws Exception{
         accounts=Accounts;
         byte[][] hashes=computeAccountHashes();
-        
         roots = buildTree(hashes);
-        
-        
-        
     }
 
     private byte[][] computeAccountHashes() throws Exception {
@@ -29,11 +25,8 @@ public class MerkleTree {
             ByteBuffer.wrap(data, data.length-4, 4).putInt(account.getValue());
             byte[] accountHash = hash(data);
             
-            
             account.setAccountHash(accountHash);
             accountHashes.add(accountHash);
-            
-           
         }
         return accountHashes.toArray(new byte[0][]);
     }
@@ -46,11 +39,9 @@ public class MerkleTree {
     }
 
     public static byte[] hash(byte[] data) throws Exception{
-        // your hash function implementation here
         MessageDigest sha = MessageDigest.getInstance("SHA-1");
         sha.update(data);
 
-        
         return sha.digest();
     }
 
@@ -63,12 +54,9 @@ public class MerkleTree {
                 proof.rootHash=root.getHash();
                 break;
             }
-                
         }
         
-        
         if (node != null) {
-            //System.out.println("basas");
             proof.setLeafHash(leafHash);
             while (node.getParent() != null) {
                 MerkleNode parent = node.getParent();
@@ -90,7 +78,6 @@ public class MerkleTree {
         int ind=0;
         
         MerkleNode[] nodes = new MerkleNode[hashes.length*2];
-        //MerkleNode[] parents= new MerkleNode[hashes.length];
         for (int i = 0; i < hashes.length; i++) {
             nodes[i] = new MerkleNode(hashes[i]);
         }
@@ -103,7 +90,6 @@ public class MerkleTree {
             roots.add(nodes[k-1]);
             k--;
         }
-        
 
         while(k%2==0){
             int aux=0;
@@ -125,34 +111,21 @@ public class MerkleTree {
             k=ind+aux;
 
         }
-        System.out.println("tamanho "+(hashes.length+j-1));
         roots.add(nodes[hashes.length+j-1]);
 
         return roots;
-        //return nodes[hashes.length+j-1];
-
-
-        
-       
-        
     }
 
     private MerkleNode findNode(MerkleNode node, byte[] hash) {
         
         if (node.isLeaf()) {
-            //System.out.println(node.getHash().equals(hash));
             return node.getHash().equals(hash) ? node : null;
         } else {
-            //System.out.println("boas2");
             MerkleNode left = findNode(node.getLeftChild(), hash);
             MerkleNode right = (left != null) ? null : findNode(node.getRightChild(), hash);
             return (left != null) ? left : right;
         }
-        
     }
-    
-    
-
     public static class MerkleNode {
         private byte[] hash;
         private MerkleNode parent;
@@ -166,11 +139,9 @@ public class MerkleTree {
         public MerkleNode(byte[] leftHash, byte[] rightHash) {
             try{
                 this.hash = computeHash(leftHash, rightHash);
-                //System.out.println(Base64.getEncoder().encodeToString(this.hash) );
             }catch(Exception e){
                 e.printStackTrace();
             }
-            
         }
 
         public byte[] getHash() {
@@ -267,30 +238,20 @@ public class MerkleTree {
             for (byte[] siblingHash : proof.siblingHashes) {
                 
                 if ((computedHash == null) || (siblingHash == null)) {
-                    //System.out.println("bazoooo");
                     return false;
                 }
-                System.out.println("false or not: "+proof.isLeft[i]);
 
                 if(proof.isLeft[i]){
                     computedHash=computeHash(siblingHash,computedHash);
                 }else{
                     computedHash=computeHash(computedHash,siblingHash);
                 }
-                
-                
-                
-                
                 i++;
             }
         }
-        
-        //System.out.println(Base64.getEncoder().encodeToString(computedHash) );
-        //System.out.println(Base64.getEncoder().encodeToString(root.getHash()) );
         return MessageDigest.isEqual(proof.rootHash, computedHash);
     }
 
-   
     public static String getName(PublicKey pubKey){
         for(Account account: accounts.values()){
             if(account.getPublicKey().equals(pubKey)){
@@ -299,9 +260,5 @@ public class MerkleTree {
         }
         return null;
     }
-
-    
-
-    
 }
 

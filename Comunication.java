@@ -40,7 +40,7 @@ public class Comunication {
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
-        int timeout=5000;
+        int timeout=15000;
         message= String.valueOf(SERVER_PORT)+"_"+String.valueOf(messageNounce)+"_"+String.valueOf(id)+"_"+message;
         byte[] messageBytes= Signer.sign(message);
         InetAddress serverAddress = InetAddress.getByName("localhost");
@@ -138,7 +138,7 @@ public class Comunication {
         boolean responseReceived=false;
         
         DatagramSocket socket = new DatagramSocket();
-        int timeout=5000;
+        int timeout=15000;
         String sendMessage= String.valueOf(messageNounce)+"_"+message;
         byte[] messageBytes= Signer.sign(sendMessage);        
         InetAddress serverAddress = InetAddress.getByName("localhost");

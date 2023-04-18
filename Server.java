@@ -16,7 +16,7 @@ import java.util.regex.PatternSyntaxException;
 
 public class Server {
     
-    private static final int BLOCK_SIZE=4;
+    private static final int BLOCK_SIZE=2;
     private static final int FEE=1;
     private static final int SNAPSHOT=1;
     private static final int BUFFER_SIZE = 65000;
@@ -372,6 +372,7 @@ public class Server {
                     }
                     return;
                 }
+                System.out.println("Transaction "+i+" verified");
             }
 
             String prepare="PREPARE_"+command;
@@ -559,7 +560,7 @@ public class Server {
                         systemAccounts.put(client,account);
                         
                         state="_ACK_";
-                        System.out.println("Command was executed");
+                        System.out.println("Command "+i+" was executed");
                     }
                 }
             }
@@ -575,7 +576,7 @@ public class Server {
                        balance=systemAccounts.get(client).getValue();
                         
                         state="_ACK_";
-                        System.out.println("Command was executed");
+                        System.out.println("Command "+i+" was executed");
                     }
                 }
             }
@@ -613,7 +614,7 @@ public class Server {
                             systemAccounts.replace("Leader", leaderAccount);
 
                             state="_ACK_";
-                            System.out.println("Command was executed");
+                            System.out.println("Command "+i+" was executed");
                         }
                     }
                 }

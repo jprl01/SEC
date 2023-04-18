@@ -95,6 +95,8 @@ public class Signer {
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
 
+
+        System.out.println("\n\nReceived message "+str);
         String sig = new String(signature);
         byte[] decodedBytes = Base64.getDecoder().decode(sig);
 
@@ -103,6 +105,7 @@ public class Signer {
         if(!verifies){
             return tokens[0]+"_NACK";
         }
+
         return str;
     }
 

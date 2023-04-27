@@ -240,7 +240,7 @@ public class Comunication {
                                     }
                                     else{
                                         //if some value is different ask for consensus
-
+                                        System.out.println("Trying phase 2");
                                         int id =Client.incMessageId();
                                         String tokens2[] =message.split("_");
                                         String phase2= tokens2[0]+"_"+tokens2[1]+"_"+id+"_StrongCheckBalancePhase2_"+tokens2[4];
@@ -248,7 +248,7 @@ public class Comunication {
                                         Thread thread = new Thread(new Runnable()  {
                                             public void run()  {
                                                 try{
-                                                    broadcastClient(phase2, portsS, 2);       
+                                                    broadcastClient(phase2, portsS, 3);       
                                                     
                                                     
                                                 }catch(Exception e){
@@ -298,11 +298,21 @@ public class Comunication {
                                 if(MerkleTree.verifyProof(proof)){
                                     System.out.println("Request " + tokens[3] +". By performing a Weak Check Balance, you have the following value in your account: " + tokens[5] + "\n");
                                 }              
+                            }else if(CheckBalance==3){
+                                if(!readsValues.containsKey(tokens[3])){
+                                    readsValues.put(tokens[3],new ArrayList<>());
+                                }
+                                readsValues.get(tokens[3]).add(Integer.parseInt(tokens[4]));
+                                if(responsesReceived.get(tokens[3])>=quorum){
+                                    responsesReceived.put(tokens[3],-1);
+                                    System.out.println("Request " + tokens[3] +". By performing a Strong Check Balance, you have the following value in your account: " + tokens[4] + "\n");
+
+                                }
                             }
                             else{
                                 if(responsesReceived.get(tokens[3])>=quorum){
                                     System.out.println("Command " + tokens[3] + " was applied.");
-                                    responsesReceived.put(tokens[3],0);
+                                    responsesReceived.put(tokens[3],-1);
                                 }
                             }
                             

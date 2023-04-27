@@ -11,8 +11,8 @@ public class StrongCheckBalanceByzantinePuppetMaster{
         String commandClient3 = "java Client Joaquim";
         String commandClient4 = "java Client Manuel";
 
-        String[] terminalCommand = {"cmd.exe", "/c", "start", "cmd.exe", "/k",byzatineCommand+" 4 "+ports[0]+portsS+clients};
-        String[] terminalCommand2 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[1]+portsS+clients};
+        String[] terminalCommand = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[0]+portsS+clients};
+        String[] terminalCommand2 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",byzatineCommand+" 4 "+ports[1]+portsS+clients};
         String[] terminalCommand3 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[2]+portsS+clients};
         String[] terminalCommand4 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",command+" 4 "+ports[3]+portsS+clients};
         String[] terminalCommand5 = {"cmd.exe", "/c", "start", "cmd.exe", "/k",commandClient1+" 4 "+portsS+clients};

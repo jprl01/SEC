@@ -152,7 +152,7 @@ public class StrongCheckBalanceByzantineServer {
                 if(tokens[4].equals("StrongCheckBalancePhase1")){
                     Integer value = systemAccounts.get(tokens[2]).getValue();
                     String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                    String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+ value;
+                    String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_1234" ;
     
                     byte[] sendData = Signer.sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));

@@ -1,5 +1,7 @@
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -11,29 +13,43 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+
 public class Signer {
 
     static PrivateKey privatekey = null;
     static Map<String,PublicKey> publicKeys= new HashMap<>();
 
-    static void loadPublicKeyFromFile(String name) throws Exception {
-        String fileName = name+"Pub.key";
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PublicKey pubk = keyFactory.generatePublic(spec);
+    static PublicKey loadPublicKeyFromFile(String name, boolean save) throws Exception {
+        PublicKey pubk=null;
+        
+        try{
+            String fileName = name+"Pub.key";
+            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            pubk = keyFactory.generatePublic(spec);
 
-        publicKeys.put(name, pubk);
+            if(save)
+                publicKeys.put(name, pubk);
+            
+        }catch(IOException | SecurityException |InvalidPathException e){
+            System.out.println("The client " + name + " is not known by the system.");
+        }
+        return pubk;
     }
 
     static void loadPrivateKeyFromFile(String name) throws Exception {
-        String fileName = name+"Priv.key";
-        byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+        try{
+            String fileName = name+"Priv.key";
+            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
 
-        privatekey = rsaPrivateKey;
+            privatekey = rsaPrivateKey;
+        }catch(IOException | SecurityException  |InvalidPathException e){
+            e.printStackTrace();
+        }
     }
 
     static byte[] sign(String message) throws Exception{
@@ -46,26 +62,21 @@ public class Signer {
 
         messageBytes = (message+'\n').getBytes();
 
-        //System.out.println("tamanho "+ messageBytes.length);
-
         String encodedString = Base64.getEncoder().encodeToString(signature);
 
         signature=encodedString.getBytes();
 
-        String sig = new String(signature);
-        //System.out.println("sig "+signature);
-
         byte[] data = new byte[messageBytes.length + signature.length];
         System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
         System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
-
+        
         return data;
     }
 
     static String verifySign(byte[] data) throws Exception{
         PublicKey publicKey;
         int separatorIndex = indexOf(data, (byte)'\n');
-
+        
         byte[] messageBytes = new byte[separatorIndex];
         byte[] signature = new byte[data.length-separatorIndex-1];
 
@@ -73,7 +84,6 @@ public class Signer {
         System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
 
         String str = new String(messageBytes, StandardCharsets.UTF_8);
-        System.out.println("Received message: "+str);
 
         String[] tokens= str.split("_");
         if(tokens[1].equals("Client"))
@@ -85,31 +95,31 @@ public class Signer {
         rsaForVerify.initVerify(publicKey);
         rsaForVerify.update(messageBytes);
 
+
+        System.out.println("\n\nReceived message "+str);
         String sig = new String(signature);
         byte[] decodedBytes = Base64.getDecoder().decode(sig);
 
-
         boolean verifies = rsaForVerify.verify(decodedBytes);
-
-
-
-
-        System.out.println("Signature verifies: " + verifies+"\n");
 
         if(!verifies){
             return tokens[0]+"_NACK";
         }
+
         return str;
     }
 
-    private static int indexOf(byte[] array, byte value) {
-        for (int i = 0; i < array.length; i++) {
+    public static int indexOf(byte[] array, byte value) {
+
+        for (int i = array.length - 1; i >= 0; i--) {
             if (array[i] == value) {
                 return i;
+                
             }
         }
         return -1;
     }
+
 
     public static PrivateKey getPrivatekey() {
         return privatekey;
@@ -117,6 +127,10 @@ public class Signer {
 
     public static void setPrivatekey(PrivateKey privKey) {
         privatekey = privKey;
+    }
+
+    public static PublicKey getPublicKey(String name){
+        return publicKeys.get(name);
     }
 }
 

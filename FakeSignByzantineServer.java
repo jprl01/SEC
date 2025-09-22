@@ -2,8 +2,14 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.KeyFactory;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -14,40 +20,43 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.regex.PatternSyntaxException;
 
-public class Server {
+public class FakeSignByzantineServer {
     
-    private static final int BLOCK_SIZE=2;
+    private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
-    private static final int SNAPSHOT=1;
-    private static final int BUFFER_SIZE = 65000;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
     private static final Object lockCommit = new Object();
     
-    private static int SERVER_PORT;
-    private static int consensus_instance=0;
+    private static  int SERVER_PORT ;
+    private static final int BUFFER_SIZE = 65000;
+    private static boolean leader=false;
     private static int round=1;
+    private static Queue<String> queue = new LinkedList<>();
+    private static Map<String, Integer> idRequests = new HashMap<>();
+    
+    private static Map<String,String> clientsSource = new HashMap<>();
+    
+    private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
+    private static Map<String, Integer> consensusValue = new HashMap<>();
+    
+    private static Map<String,Account> systemAccounts = new HashMap<>();
+    private static MerkleTree merkleTree=null;
+
+    private static Map<String, List<String>> portsPrepare = new HashMap<>();
+    private static Map<String, List<String>> portsCommit = new HashMap<>();
+    
+    private static int consensus_instance=0;
+    private static boolean consensus_started=false;
     private static int nServers;
     private static int faults;
     private static int byznatineQuorum;
-    private static int lowestPort;
-    private static boolean leader=false;
-    private static boolean consensus_started=false;
     private static String[] ports;
-    private static Queue<String> queue = new LinkedList<>();
-    private static Map<String, Integer> idRequests = new HashMap<>();
-    private static Map<String,String> clientsSource = new HashMap<>();
-    private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
-    private static Map<String, Integer> consensusValue = new HashMap<>();
-    private static Map<String,Account> systemAccounts = new HashMap<>();
-    private static MerkleTree merkleTree=null;
-    private static Map<String, List<String>> portsPrepare = new HashMap<>();
-    private static Map<String, List<String>> portsCommit = new HashMap<>();
+    private static int lowestPort;
     private static DatagramSocket serverSocket;
-
+    
     public static void main(String[] args) throws Exception {
-        
         
         nServers=Integer.parseInt(args[0]);
 
@@ -58,7 +67,7 @@ public class Server {
         SERVER_PORT=Integer.parseInt(args[1]);
         lowestPort=Integer.parseInt(args[2]);
         ports = new String[args.length-2];        
-        
+
         Comunication.setServerPort(SERVER_PORT);
         Comunication.setNServers(nServers);
         
@@ -73,10 +82,10 @@ public class Server {
         PublicKey leaderPublicKey = Signer.getPublicKey(String.valueOf(lowestPort));
         Account account = new Account(leaderPublicKey, "Leader", "0");
         systemAccounts.put("Leader",account);
-
+        
         if(lowestPort==SERVER_PORT){
             leader=true;
-            System.out.println("I am the leader server");
+            System.out.println("I am a byzantine leader server.");
         } 
         System.out.println("I am server " + SERVER_PORT);
 
@@ -84,6 +93,7 @@ public class Server {
         
         try{
             while(true){
+            
             
                 byte[] data = new byte[BUFFER_SIZE];
                 DatagramPacket receivePacket = new DatagramPacket(data, data.length);
@@ -110,7 +120,7 @@ public class Server {
         String command;
         DatagramPacket sendPacket;
         int clientPort = receivePacket.getPort();
-
+            
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
@@ -158,8 +168,43 @@ public class Server {
                 }
 
                 if(consensus_started){  
+
                     if(leader){
-                        queue.add(receivedMessage);
+
+                            byte[] data = receivedMessage.getBytes();
+
+                            int separatorIndex = Signer.indexOf(data, (byte)'\n');
+    
+                            byte[] messageBytes = new byte[separatorIndex];
+                            byte[] signature = new byte[data.length-separatorIndex-1];
+                    
+                            System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                            System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+                    
+                            String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
+
+                            String fileName = "1235Priv.key";
+                            byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+                            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+                            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                            PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+                
+                            Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+                            dsaForSign.initSign(rsaPrivateKey);
+                            dsaForSign.update(messageBytes);
+                            signature = dsaForSign.sign();
+                    
+                            messageBytes = (messageSentByClient+'\n').getBytes();
+                    
+                            String encodedString = Base64.getEncoder().encodeToString(signature);
+                    
+                            signature=encodedString.getBytes();
+                    
+                            data = new byte[messageBytes.length + signature.length];
+                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                            System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+                            
+                            queue.add(data.toString());
                     }
                     return;
                 }
@@ -167,55 +212,83 @@ public class Server {
                     consensus_started=true;
                 }
             }       
-
             if(tokens[4].equals("WeakCheckBalance")){
 
-                Account account = systemAccounts.get(tokens[2]);
-                byte[] hash=account.getAccountHash();
+                Account aliceAccount = systemAccounts.get(tokens[2]);
+                byte[] aliceHash=aliceAccount.getAccountHash();
 
-                MerkleTree.MerkleProof proof = merkleTree.getProof(hash);
+                MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
 
-                String proofEncoded=transformProof(account, proof);
-                
                 String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+proofEncoded ;
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
-
-                consensus_started=false;
                 return;
             }
-
+            
             if(leader){
                 
-                queue.add(receivedMessage);
+                byte[] data = receivedMessage.getBytes();
+
+                int separatorIndex = Signer.indexOf(data, (byte)'\n');
+
+                byte[] messageBytes = new byte[separatorIndex];
+                byte[] signature = new byte[data.length-separatorIndex-1];
+        
+                System.arraycopy(data, 0, messageBytes, 0, separatorIndex);
+                System.arraycopy(data, separatorIndex+1, signature, 0, data.length-separatorIndex-1);
+        
+                String messageSentByClient = new String(messageBytes, StandardCharsets.UTF_8);
+
+                String fileName = "1235Priv.key";
+                byte[] keyBytes = Files.readAllBytes(Paths.get(fileName));
+                PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PrivateKey rsaPrivateKey = keyFactory.generatePrivate(spec);
+    
+                Signature dsaForSign = Signature.getInstance("SHA1withRSA");
+                dsaForSign.initSign(rsaPrivateKey);
+                dsaForSign.update(messageBytes);
+                signature = dsaForSign.sign();
+        
+                messageBytes = (messageSentByClient+'\n').getBytes();
+        
+                String encodedString = Base64.getEncoder().encodeToString(signature);
+        
+                signature=encodedString.getBytes();
+        
+                data = new byte[messageBytes.length + signature.length];
+                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                System.arraycopy(signature, 0, data, messageBytes.length, signature.length);
+                
+                String dataAsString = new String(data, StandardCharsets.UTF_8);
+
+                queue.add(dataAsString);     
 
                 if(queue.size()==BLOCK_SIZE){
+                    
                     sendBlock();
                 }
                 else{
                     consensus_started=false;
                 }
             }
-        }
-        else{
+            
+        }else{
+
+            
             synchronized(lockServers){
                 if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
                     System.out.println("duplicated message");
                     return;
                 }
             }
-
             command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
             
-            String senderPort = tokens[0];
             
-            if(tokens[3].equals("SNAPSHOT")){
-
-                System.out.println("Snapshots being done");
-            }
+            String senderPort = tokens[0];
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
             byte[] sendData = Signer.sign(response);
@@ -232,56 +305,23 @@ public class Server {
                     }catch(Exception e){
                         e.printStackTrace();
                     }
+                    
                 }
             });
             thread.start();
         }
 
     }
-    public static String transformProof(Account account,MerkleTree.MerkleProof proof){
-        String siblings="";
-        String left="";
-        int i=0;
-
-        for(boolean isleft: proof.getLefts()){
-            if(proof.getSiblingHashes()==null || i==proof.getSiblingHashes().length)
-                break;
-            
-            if(isleft){
-                left+="L-";
-            }else{
-                left+="R-";
-            }
-            
-            i++;
-        }
-        if(proof.getSiblingHashes()!=null){
-            for(byte[] sibling : proof.getSiblingHashes()){
-                siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
-            }
-        }
-        else{
-            siblings="-";
-        }
-        
-        String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
-                                Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                    "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
-        return proofEncoded;
-    }
-
     private static boolean processIdRequest(String client, int idRequest){
         
         if(!idRequests.containsKey(client)){
                     
             if(idRequest==0){
                 idRequests.put(client,1);
-                
             }                            
             else{
                 return false;
             }
-                
         }
         else if(idRequests.get(client)==idRequest ){
             idRequests.put(client,idRequest+1);
@@ -324,7 +364,6 @@ public class Server {
     }
 
     private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort) throws Exception{
-
         String[] tokens;
         try{
             tokens= command.split("_");
@@ -342,37 +381,21 @@ public class Server {
 
             String transactions[]=block.split(" ");
 
+            //verifying if commands in block are or not signed by the client
             for(int i=0;i<BLOCK_SIZE;i++){
                 
                 String str=Signer.verifySign(transactions[i].getBytes());
 
                 //if not sent by client invalidate block
                 if(str.split("_")[1].equals("NACK")){
+
                     String response = String.valueOf(SERVER_PORT)+"_"+str;
                     byte[] sendData = Signer.sign(response);
                     DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("localhost"), socketPort);
                     serverSocket.send(sendPacket);
 
-                    String[] tokensRequest;
-
-                    try{
-                        tokensRequest= transactions[i].split("_");
-                    }
-                    catch(PatternSyntaxException e){
-                        System.out.println("Message format is incorret. Message will be ignored.");
-                        return;
-                    }
-                    String[] clientSource;
-                    if(clientsSource.containsKey(tokensRequest[2] + tokensRequest[3])){
-                        clientSource = clientsSource.get(tokensRequest[2] + tokensRequest[3]).split("_");;
-                        response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_NACK_" + tokensRequest[3];
-                        sendData = Signer.sign(response);
-                        sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
-                        serverSocket.send(sendPacket);
-                    }
                     return;
                 }
-                System.out.println("Transaction "+i+" verified");
             }
 
             String prepare="PREPARE_"+command;
@@ -410,8 +433,7 @@ public class Server {
                     
                     if(!consensusValuePrepare.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
                         requests=1;
-                    }
-                    else{
+                    }else{
                         requests=consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
                         
                     }
@@ -419,7 +441,6 @@ public class Server {
                     
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-                        
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
                     }
@@ -476,17 +497,15 @@ public class Server {
     }
 
     private static void decide(String command) throws Exception{
-        
         parseCommand(command);
         
         consensus_instance++;
                 
         commmandsQueue();
+
     }
 
-
     public static void commmandsQueue() throws Exception{
-
         if(queue.size()>=BLOCK_SIZE && leader){
             sendBlock();
         }
@@ -495,7 +514,6 @@ public class Server {
         }
     }
     
-
     public static void start( String message,String[] ports) throws Exception{
         
         if(leader){
@@ -521,6 +539,7 @@ public class Server {
             System.out.println("Message format is incorret. Message will be ignored.");
             return;
         }
+
         command=command.substring(tokens[0].length()+tokens[1].length() +2);
 
         String transactions[]=command.split(" ");
@@ -560,11 +579,10 @@ public class Server {
                         systemAccounts.put(client,account);
                         
                         state="_ACK_";
-                        System.out.println("Command "+i+" was executed");
                     }
                 }
-            }
-            else if(type.equals("StrongCheckBalancePhase2")){
+
+            }else if(type.equals("StrongCheckBalancePhase2")){
                 
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5].split("\n")[0]);
                 X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
@@ -572,15 +590,12 @@ public class Server {
                 PublicKey publicKey = keyFactory.generatePublic(keySpec);
                 if(Signer.getPublicKey(client).equals(publicKey)){
                     if(systemAccounts.containsKey(client)){
-                        
                        balance=systemAccounts.get(client).getValue();
-                        
                         state="_ACK_";
-                        System.out.println("Command "+i+" was executed");
                     }
                 }
-            }
-            else if(type.equals("Transfer")){
+
+            }else if(type.equals("Transfer")){
                 String amountToTransfer=tokens[7].split("\n")[0];
 
                 // source client
@@ -600,6 +615,7 @@ public class Server {
                     if(Integer.parseInt(amountToTransfer)>=0 && systemAccounts.containsKey(client) && systemAccounts.containsKey(destinationName)){
                         Account sourceAccount = systemAccounts.get(client);
                         Integer sourceAccountValue = sourceAccount.getValue();
+
                         if(sourceAccountValue >= (Integer.parseInt(amountToTransfer) + FEE)){
                             sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
                             systemAccounts.replace(client, sourceAccount);
@@ -614,7 +630,6 @@ public class Server {
                             systemAccounts.replace("Leader", leaderAccount);
 
                             state="_ACK_";
-                            System.out.println("Command "+i+" was executed");
                         }
                     }
                 }
@@ -630,15 +645,9 @@ public class Server {
             serverSocket.send(sendPacket);
         }
 
-
-        //make a snapshot
-        if(consensus_instance%SNAPSHOT==0){
-            
-            merkleTree= new MerkleTree(systemAccounts);
-            Comunication.broadcast("SNAPSHOT_"+consensus_instance,ports);
-        }
+        //send signed state to other replicas
+        merkleTree= new MerkleTree(systemAccounts);
     }
-
     
     public static int getLowestPort(){
         return lowestPort;

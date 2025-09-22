@@ -14,40 +14,43 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.regex.PatternSyntaxException;
 
-public class Server {
+public class StrongCheckBalanceByzantineServer {
     
-    private static final int BLOCK_SIZE=2;
+    private static final int BLOCK_SIZE=1;
     private static final int FEE=1;
-    private static final int SNAPSHOT=1;
-    private static final int BUFFER_SIZE = 65000;
     private static final Object lock = new Object();
     private static final Object lockServers = new Object();
     private static final Object lockPrepare = new Object();
     private static final Object lockCommit = new Object();
     
-    private static int SERVER_PORT;
-    private static int consensus_instance=0;
-    private static int round=1;
-    private static int nServers;
-    private static int faults;
-    private static int byznatineQuorum;
-    private static int lowestPort;
+    private static  int SERVER_PORT ;
+    private static final int BUFFER_SIZE = 65000;
     private static boolean leader=false;
-    private static boolean consensus_started=false;
-    private static String[] ports;
+    private static int round=1;
     private static Queue<String> queue = new LinkedList<>();
     private static Map<String, Integer> idRequests = new HashMap<>();
+    
     private static Map<String,String> clientsSource = new HashMap<>();
+    
     private static Map<String, Integer> consensusValuePrepare = new HashMap<>();
     private static Map<String, Integer> consensusValue = new HashMap<>();
+    
     private static Map<String,Account> systemAccounts = new HashMap<>();
     private static MerkleTree merkleTree=null;
     private static Map<String, List<String>> portsPrepare = new HashMap<>();
     private static Map<String, List<String>> portsCommit = new HashMap<>();
+    
+    private static int consensus_instance=0;
+    private static boolean consensus_started=false;
+    private static int nServers;
+    private static int faults;
+    private static int byznatineQuorum;
+    private static String[] ports;
+    private static int lowestPort;
     private static DatagramSocket serverSocket;
 
+
     public static void main(String[] args) throws Exception {
-        
         
         nServers=Integer.parseInt(args[0]);
 
@@ -62,6 +65,7 @@ public class Server {
         Comunication.setServerPort(SERVER_PORT);
         Comunication.setNServers(nServers);
         
+        // Load RSA keys from files
         for(int i=2;i< args.length;i++){
             Signer.loadPublicKeyFromFile(args[i],true);
             if(args[1].equals(args[i])){
@@ -69,21 +73,21 @@ public class Server {
             }
             ports[i-2]=args[i];
         }
-
         PublicKey leaderPublicKey = Signer.getPublicKey(String.valueOf(lowestPort));
         Account account = new Account(leaderPublicKey, "Leader", "0");
         systemAccounts.put("Leader",account);
-
+        
         if(lowestPort==SERVER_PORT){
             leader=true;
-            System.out.println("I am the leader server");
+            System.out.println("I am the leader server.");
         } 
-        System.out.println("I am server " + SERVER_PORT);
+        System.out.println("I am server " + SERVER_PORT + " and I am byzantine. When a Client requests their Strong Check Balance, I'll always answer 1234!!");
 
         serverSocket = new DatagramSocket(SERVER_PORT);
         
         try{
             while(true){
+            
             
                 byte[] data = new byte[BUFFER_SIZE];
                 DatagramPacket receivePacket = new DatagramPacket(data, data.length);
@@ -113,7 +117,7 @@ public class Server {
 
         InetAddress clientAddress = receivePacket.getAddress();    
         String receivedMessage = new String(receivePacket.getData(), 0, receivePacket.getLength());
-
+        
         String str = Signer.verifySign(receivedMessage.getBytes());
         
         try{
@@ -132,7 +136,7 @@ public class Server {
             serverSocket.send(sendPacket);
             return;
         }
-
+        
         if(tokens[1].equals("Client")){
             
             int idRequest=Integer.parseInt(tokens[3]);
@@ -148,7 +152,7 @@ public class Server {
                 if(tokens[4].equals("StrongCheckBalancePhase1")){
                     Integer value = systemAccounts.get(tokens[2]).getValue();
                     String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                    String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+ value;
+                    String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_1234" ;
     
                     byte[] sendData = Signer.sign(response);
                     sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
@@ -170,57 +174,51 @@ public class Server {
 
             if(tokens[4].equals("WeakCheckBalance")){
 
-                Account account = systemAccounts.get(tokens[2]);
-                byte[] hash=account.getAccountHash();
+                Account aliceAccount = systemAccounts.get(tokens[2]);
+                byte[] aliceHash=aliceAccount.getAccountHash();
 
-                MerkleTree.MerkleProof proof = merkleTree.getProof(hash);
+                MerkleTree.MerkleProof proof = merkleTree.getProof(aliceHash);
 
-                String proofEncoded=transformProof(account, proof);
-                
+                boolean oi=MerkleTree.verifyProof( proof);
+
                 String clientSource[]=clientsSource.get(clientName + idRequest).split("_");
-                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest+"_"+proofEncoded ;
+                String response = String.valueOf(SERVER_PORT)+"_"+clientSource[2]+"_ACK_" + idRequest ;
                 
                 byte[] sendData = Signer.sign(response);
                 sendPacket = new DatagramPacket(sendData, sendData.length,InetAddress.getByName(clientSource[0]), Integer.parseInt(clientSource[1]));
                 serverSocket.send(sendPacket);
-
-                consensus_started=false;
                 return;
             }
-
+            
             if(leader){
                 
                 queue.add(receivedMessage);
 
                 if(queue.size()==BLOCK_SIZE){
+                    
                     sendBlock();
                 }
                 else{
                     consensus_started=false;
                 }
             }
-        }
-        else{
+            
+        }else{
             synchronized(lockServers){
                 if(!processIdRequest(tokens[0], Integer.parseInt(tokens[2]))){
                     System.out.println("duplicated message");
                     return;
                 }
             }
-
             command=str.substring(tokens[0].length()+tokens[1].length()+tokens[2].length()+3);
             
             String senderPort = tokens[0];
-            
-            if(tokens[3].equals("SNAPSHOT")){
-
-                System.out.println("Snapshots being done");
-            }
             
             String response = String.valueOf(SERVER_PORT)+"_"+tokens[1]+"_ACK";
             byte[] sendData = Signer.sign(response);
             sendPacket = new DatagramPacket(sendData, sendData.length, clientAddress, clientPort);
             serverSocket.send(sendPacket);
+              
             Thread thread = new Thread(new Runnable()  {
                 public void run()  {
                     try{
@@ -238,38 +236,6 @@ public class Server {
         }
 
     }
-    public static String transformProof(Account account,MerkleTree.MerkleProof proof){
-        String siblings="";
-        String left="";
-        int i=0;
-
-        for(boolean isleft: proof.getLefts()){
-            if(proof.getSiblingHashes()==null || i==proof.getSiblingHashes().length)
-                break;
-            
-            if(isleft){
-                left+="L-";
-            }else{
-                left+="R-";
-            }
-            
-            i++;
-        }
-        if(proof.getSiblingHashes()!=null){
-            for(byte[] sibling : proof.getSiblingHashes()){
-                siblings+=Base64.getEncoder().encodeToString(sibling)+"-";
-            }
-        }
-        else{
-            siblings="-";
-        }
-        
-        String proofEncoded=Base64.getEncoder().encodeToString(account.getAccountHash())+"_"+account.getValue()+"_"+
-                                Base64.getEncoder().encodeToString(proof.getLeafHash())+
-                                    "_"+ Base64.getEncoder().encodeToString(proof.getRootHash())+"_"+siblings+"_"+left;
-        return proofEncoded;
-    }
-
     private static boolean processIdRequest(String client, int idRequest){
         
         if(!idRequests.containsKey(client)){
@@ -324,7 +290,6 @@ public class Server {
     }
 
     private static void analyse_command(String command,String ports[], boolean leaderSent, String senderPort,int socketPort) throws Exception{
-
         String[] tokens;
         try{
             tokens= command.split("_");
@@ -342,6 +307,7 @@ public class Server {
 
             String transactions[]=block.split(" ");
 
+            //verifying if commands in block are or not signed by the client
             for(int i=0;i<BLOCK_SIZE;i++){
                 
                 String str=Signer.verifySign(transactions[i].getBytes());
@@ -372,7 +338,6 @@ public class Server {
                     }
                     return;
                 }
-                System.out.println("Transaction "+i+" verified");
             }
 
             String prepare="PREPARE_"+command;
@@ -410,8 +375,7 @@ public class Server {
                     
                     if(!consensusValuePrepare.containsKey(tokens[3]+"_"+tokens[4]+"_"+tokens[5])){
                         requests=1;
-                    }
-                    else{
+                    }else{
                         requests=consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])+1;
                         
                     }
@@ -419,7 +383,6 @@ public class Server {
                     
                     if(consensusValuePrepare.get(tokens[3]+"_"+tokens[4]+"_"+tokens[5])>=byznatineQuorum){
                         consensusValuePrepare.put(tokens[3]+"_"+tokens[4]+"_"+tokens[5],0);
-                        
                         System.out.println("Broadcasting COMMIT");
                         broadcast=true;  
                     }
@@ -472,11 +435,11 @@ public class Server {
             }
             if(decide)
                 decide(command);
+            
         }
     }
 
     private static void decide(String command) throws Exception{
-        
         parseCommand(command);
         
         consensus_instance++;
@@ -486,7 +449,6 @@ public class Server {
 
 
     public static void commmandsQueue() throws Exception{
-
         if(queue.size()>=BLOCK_SIZE && leader){
             sendBlock();
         }
@@ -494,7 +456,6 @@ public class Server {
             consensus_started=false;
         }
     }
-    
 
     public static void start( String message,String[] ports) throws Exception{
         
@@ -560,11 +521,10 @@ public class Server {
                         systemAccounts.put(client,account);
                         
                         state="_ACK_";
-                        System.out.println("Command "+i+" was executed");
                     }
                 }
-            }
-            else if(type.equals("StrongCheckBalancePhase2")){
+
+            }else if(type.equals("StrongCheckBalancePhase2")){
                 
                 byte[] publicKeyBytes = Base64.getDecoder().decode(tokens[5].split("\n")[0]);
                 X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
@@ -573,14 +533,13 @@ public class Server {
                 if(Signer.getPublicKey(client).equals(publicKey)){
                     if(systemAccounts.containsKey(client)){
                         
-                       balance=systemAccounts.get(client).getValue();
+                       balance=1234;
                         
                         state="_ACK_";
-                        System.out.println("Command "+i+" was executed");
                     }
                 }
-            }
-            else if(type.equals("Transfer")){
+
+            }else if(type.equals("Transfer")){
                 String amountToTransfer=tokens[7].split("\n")[0];
 
                 // source client
@@ -597,10 +556,14 @@ public class Server {
                 String destinationName = MerkleTree.getName(destinationPublicKey);
 
                 if(Signer.getPublicKey(client).equals(sourcePublicKey)){
+
                     if(Integer.parseInt(amountToTransfer)>=0 && systemAccounts.containsKey(client) && systemAccounts.containsKey(destinationName)){
+
                         Account sourceAccount = systemAccounts.get(client);
                         Integer sourceAccountValue = sourceAccount.getValue();
+
                         if(sourceAccountValue >= (Integer.parseInt(amountToTransfer) + FEE)){
+
                             sourceAccount.setValue(sourceAccount.getValue()-Integer.parseInt(amountToTransfer) - FEE);
                             systemAccounts.replace(client, sourceAccount);
 
@@ -608,13 +571,13 @@ public class Server {
                             destinationAccount.setValue(destinationAccount.getValue()+Integer.parseInt(amountToTransfer));
                             systemAccounts.replace(destinationName, destinationAccount);
 
+    
                             //paying fee to the leader
                             Account leaderAccount = systemAccounts.get("Leader");
                             leaderAccount.setValue(leaderAccount.getValue()+ FEE);
                             systemAccounts.replace("Leader", leaderAccount);
 
                             state="_ACK_";
-                            System.out.println("Command "+i+" was executed");
                         }
                     }
                 }
@@ -631,12 +594,8 @@ public class Server {
         }
 
 
-        //make a snapshot
-        if(consensus_instance%SNAPSHOT==0){
-            
-            merkleTree= new MerkleTree(systemAccounts);
-            Comunication.broadcast("SNAPSHOT_"+consensus_instance,ports);
-        }
+        //send signed state to other replicas
+        merkleTree= new MerkleTree(systemAccounts);
     }
 
     
